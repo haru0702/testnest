@@ -4,17 +4,13 @@ import { Sidebar } from './components/Sidebar';
 import { DashboardPage } from './pages/DashboardPage';
 import { PlaceholderPage } from './pages/PlaceholderPage';
 import { ProjectsPage } from './pages/ProjectsPage';
+import { TestCasesPage } from './pages/TestCasesPage';
 import { NAV_ITEMS, type NavItemId } from './navigation';
 
 const pageContent: Record<NavItemId, ReactElement> = {
   dashboard: <DashboardPage />,
   projects: <ProjectsPage />,
-  testCases: (
-    <PlaceholderPage
-      title="Test Cases"
-      description="Test case authoring will be added in a later phase."
-    />
-  ),
+  testCases: <TestCasesPage />,
   testExecution: (
     <PlaceholderPage
       title="Test Execution"
@@ -41,7 +37,7 @@ export default function App() {
         >
           <div className="mx-auto max-w-6xl">
             <p className="text-sm font-medium text-teal-700">
-              Phase 2 Project Management
+              Phase 3 Scenario and Test Case Management
             </p>
             <h2
               id="page-title"
