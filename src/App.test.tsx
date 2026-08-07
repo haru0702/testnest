@@ -11,12 +11,14 @@ describe('App shell', () => {
     expect(screen.getByText('Total Projects')).toBeVisible();
   });
 
-  it('navigates between placeholder pages', async () => {
+  it('navigates between application pages', async () => {
     const user = userEvent.setup();
     render(<App />);
 
     await user.click(screen.getByRole('button', { name: 'Projects' }));
-    expect(screen.getByRole('heading', { name: 'Projects' })).toBeVisible();
+    expect(
+      screen.getByRole('heading', { level: 2, name: 'Projects' }),
+    ).toBeVisible();
 
     await user.click(screen.getByRole('button', { name: 'Test Cases' }));
     expect(screen.getByRole('heading', { name: 'Test Cases' })).toBeVisible();

@@ -14,12 +14,14 @@ test.describe('TestNest smoke tests', () => {
       page.getByRole('heading', { level: 2, name: 'Dashboard' }),
     ).toBeVisible();
     await expect(page.getByText('Total Projects')).toBeVisible();
-    await expect(page.getByText('Not Run')).toBeVisible();
+    await expect(page.getByText('No Run')).toBeVisible();
   });
 
   test('sidebar navigation works', async ({ page }) => {
     await page.getByRole('button', { name: 'Projects' }).click();
-    await expect(page.getByRole('heading', { name: 'Projects' })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { level: 2, name: 'Projects' }),
+    ).toBeVisible();
 
     await page.getByRole('button', { name: 'Test Cases' }).click();
     await expect(page.getByRole('heading', { name: 'Test Cases' })).toBeVisible();
