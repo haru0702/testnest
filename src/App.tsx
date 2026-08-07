@@ -3,16 +3,12 @@ import { useState } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { DashboardPage } from './pages/DashboardPage';
 import { PlaceholderPage } from './pages/PlaceholderPage';
+import { ProjectsPage } from './pages/ProjectsPage';
 import { NAV_ITEMS, type NavItemId } from './navigation';
 
 const pageContent: Record<NavItemId, ReactElement> = {
   dashboard: <DashboardPage />,
-  projects: (
-    <PlaceholderPage
-      title="Projects"
-      description="Project management will be added in a later phase."
-    />
-  ),
+  projects: <ProjectsPage />,
   testCases: (
     <PlaceholderPage
       title="Test Cases"
@@ -33,7 +29,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-950">
-      <div className="flex min-h-screen">
+      <div className="flex min-h-screen flex-col md:flex-row">
         <Sidebar
           activePage={activePage}
           navItems={NAV_ITEMS}
@@ -41,11 +37,11 @@ export default function App() {
         />
         <main
           aria-labelledby="page-title"
-          className="flex-1 px-5 py-6 sm:px-8 lg:px-10"
+          className="min-w-0 flex-1 px-5 py-6 sm:px-8 lg:px-10"
         >
           <div className="mx-auto max-w-6xl">
             <p className="text-sm font-medium text-teal-700">
-              Phase 1 Application Shell
+              Phase 2 Project Management
             </p>
             <h2
               id="page-title"
