@@ -1,13 +1,17 @@
 import { useEffect } from 'react';
 
 type ConfirmDialogProps = {
-  projectName: string;
+  title: string;
+  description: string;
+  confirmLabel: string;
   onCancel: () => void;
   onConfirm: () => void;
 };
 
 export function ConfirmDialog({
-  projectName,
+  title,
+  description,
+  confirmLabel,
   onCancel,
   onConfirm,
 }: ConfirmDialogProps) {
@@ -35,13 +39,13 @@ export function ConfirmDialog({
           id="delete-dialog-title"
           className="text-xl font-semibold text-slate-950"
         >
-          Delete project?
+          {title}
         </h3>
         <p
           id="delete-dialog-description"
           className="mt-3 text-sm leading-6 text-slate-600"
         >
-          Delete "{projectName}"? This action cannot be undone.
+          {description}
         </p>
         <div className="mt-6 flex flex-wrap justify-end gap-3">
           <button
@@ -57,7 +61,7 @@ export function ConfirmDialog({
             className="rounded-md bg-rose-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-rose-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-800"
             onClick={onConfirm}
           >
-            Delete Project
+            {confirmLabel}
           </button>
         </div>
       </section>

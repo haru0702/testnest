@@ -1,35 +1,29 @@
 import { useState, type FormEvent } from 'react';
-import {
-  PROJECT_STATUSES,
-  type Project,
-  type ProjectFormValues,
-  type ProjectStatus,
-} from '../projects/project';
+import type {
+  ScenarioFormValues,
+  TestScenario,
+} from '../testCases/testCase';
 
-type ProjectFormProps = {
-  project?: Project;
-  onSubmit: (values: ProjectFormValues) => string | null;
+type ScenarioFormProps = {
+  scenario?: TestScenario;
+  onSubmit: (values: ScenarioFormValues) => string | null;
   onCancel: () => void;
 };
 
-export function ProjectForm({
-  project,
+export function ScenarioForm({
+  scenario,
   onSubmit,
   onCancel,
-}: ProjectFormProps) {
-  const [name, setName] = useState(project?.name ?? '');
-  const [description, setDescription] = useState(project?.description ?? '');
-  const [status, setStatus] = useState<ProjectStatus>(
-    project?.status ?? 'Active',
+}: ScenarioFormProps) {
+  const [name, setName] = useState(scenario?.name ?? '');
+  const [description, setDescription] = useState(
+    scenario?.description ?? '',
   );
   const [nameError, setNameError] = useState<string | null>(null);
 
-  const isEditing = Boolean(project);
-
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-
-    const validationError = onSubmit({ name, description, status });
+    const validationError = onSubmit({ name, description });
 
     if (validationError) {
       setNameError(validationError);
@@ -38,30 +32,29 @@ export function ProjectForm({
 
   return (
     <section
-      aria-labelledby="project-form-title"
+      aria-labelledby="scenario-form-title"
       className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
     >
       <h3
-        id="project-form-title"
+        id="scenario-form-title"
         className="text-xl font-semibold text-slate-950"
       >
-        {isEditing ? 'Edit Project' : 'Create Project'}
+        {scenario ? 'Edit Scenario' : 'Create Scenario'}
       </h3>
 
       <form className="mt-5 space-y-5" noValidate onSubmit={handleSubmit}>
         <div>
           <label
             className="block text-sm font-medium text-slate-800"
-            htmlFor="project-name"
+            htmlFor="scenario-name"
           >
-            Project Name
+            Scenario Name
           </label>
           <input
-            id="project-name"
-            name="projectName"
+            id="scenario-name"
             type="text"
             autoFocus
-            aria-describedby={nameError ? 'project-name-error' : undefined}
+            aria-describedby={nameError ? 'scenario-name-error' : undefined}
             aria-invalid={Boolean(nameError)}
             className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-950 outline-none transition focus:border-teal-600 focus:ring-2 focus:ring-teal-100"
             value={name}
@@ -71,7 +64,7 @@ export function ProjectForm({
             }}
           />
           {nameError ? (
-            <p id="project-name-error" className="mt-2 text-sm text-rose-700">
+            <p id="scenario-name-error" className="mt-2 text-sm text-rose-700">
               {nameError}
             </p>
           ) : null}
@@ -80,13 +73,12 @@ export function ProjectForm({
         <div>
           <label
             className="block text-sm font-medium text-slate-800"
-            htmlFor="project-description"
+            htmlFor="scenario-description"
           >
             Description
           </label>
           <textarea
-            id="project-description"
-            name="projectDescription"
+            id="scenario-description"
             rows={4}
             className="mt-2 w-full resize-y rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-950 outline-none transition focus:border-teal-600 focus:ring-2 focus:ring-teal-100"
             value={description}
@@ -94,36 +86,12 @@ export function ProjectForm({
           />
         </div>
 
-        <div>
-          <label
-            className="block text-sm font-medium text-slate-800"
-            htmlFor="project-status"
-          >
-            Status
-          </label>
-          <select
-            id="project-status"
-            name="projectStatus"
-            className="testnest-select mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-950 outline-none transition focus:border-teal-600 focus:ring-2 focus:ring-teal-100 sm:max-w-xs"
-            value={status}
-            onChange={(event) =>
-              setStatus(event.target.value as ProjectStatus)
-            }
-          >
-            {PROJECT_STATUSES.map((projectStatus) => (
-              <option key={projectStatus} value={projectStatus}>
-                {projectStatus}
-              </option>
-            ))}
-          </select>
-        </div>
-
         <div className="flex flex-wrap gap-3 border-t border-slate-200 pt-5">
           <button
             type="submit"
             className="rounded-md bg-teal-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
           >
-            Save Project
+            Save Scenario
           </button>
           <button
             type="button"

@@ -9,6 +9,7 @@ import {
   type ProjectFormValues,
 } from '../projects/project';
 import { loadProjects, saveProjects } from '../projects/projectStorage';
+import { deleteProjectTestData } from '../testCases/testCaseStorage';
 
 type FormMode = 'create' | 'edit' | null;
 
@@ -90,6 +91,7 @@ export function ProjectsPage() {
     );
 
     saveProjects(nextProjects);
+    deleteProjectTestData(deleteTarget.id);
     setProjects(nextProjects);
     setDeleteTarget(null);
   }
@@ -181,7 +183,9 @@ export function ProjectsPage() {
 
       {deleteTarget ? (
         <ConfirmDialog
-          projectName={deleteTarget.name}
+          title="Delete project?"
+          description={`Delete "${deleteTarget.name}"? Its scenarios and test cases will also be deleted.`}
+          confirmLabel="Delete Project"
           onCancel={() => setDeleteTarget(null)}
           onConfirm={handleDelete}
         />
