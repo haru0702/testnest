@@ -259,10 +259,10 @@ test.describe('Test execution', () => {
     await page.getByRole('button', { name: 'Dashboard' }).click();
 
     await expect(
-      page.getByRole('article', { name: 'Blocked: 1' }),
+      page.getByRole('button', { name: 'Blocked: 1' }),
     ).toBeVisible();
     await expect(
-      page.getByRole('article', { name: 'No Run: 0' }),
+      page.getByRole('button', { name: 'No Run: 0' }),
     ).toBeVisible();
   });
 
@@ -446,7 +446,7 @@ test.describe('Test execution', () => {
       page.getByRole('article', { name: 'Total Test Cases: 1' }),
     ).toBeVisible();
     await expect(
-      page.getByRole('article', { name: 'No Run: 1' }),
+      page.getByRole('button', { name: 'No Run: 1' }),
     ).toBeVisible();
 
     await selectExecutableTestCase(page);
@@ -454,10 +454,10 @@ test.describe('Test execution', () => {
     await page.getByRole('button', { name: 'Dashboard' }).click();
 
     await expect(
-      page.getByRole('article', { name: 'Passed: 1' }),
+      page.getByRole('button', { name: 'Passed: 1' }),
     ).toBeVisible();
     await expect(
-      page.getByRole('article', { name: 'No Run: 0' }),
+      page.getByRole('button', { name: 'No Run: 0' }),
     ).toBeVisible();
   });
 
@@ -471,7 +471,7 @@ test.describe('Test execution', () => {
     await page.getByRole('button', { name: 'Save Execution' }).click();
     await page.getByRole('button', { name: 'Dashboard' }).click();
     await expect(
-      page.getByRole('article', { name: 'Failed: 1' }),
+      page.getByRole('button', { name: 'Failed: 1' }),
     ).toBeVisible();
 
     await selectExecutableTestCase(page);
@@ -479,10 +479,10 @@ test.describe('Test execution', () => {
     await page.getByRole('button', { name: 'Dashboard' }).click();
 
     await expect(
-      page.getByRole('article', { name: 'Passed: 1' }),
+      page.getByRole('button', { name: 'Passed: 1' }),
     ).toBeVisible();
     await expect(
-      page.getByRole('article', { name: 'Failed: 0' }),
+      page.getByRole('button', { name: 'Failed: 0' }),
     ).toBeVisible();
   });
 
@@ -499,10 +499,10 @@ test.describe('Test execution', () => {
     await page.getByRole('button', { name: 'Dashboard' }).click();
 
     await expect(
-      page.getByRole('article', { name: 'Failed: 1' }),
+      page.getByRole('button', { name: 'Failed: 1' }),
     ).toBeVisible();
     await expect(
-      page.getByRole('article', { name: 'Passed: 0' }),
+      page.getByRole('button', { name: 'Passed: 0' }),
     ).toBeVisible();
   });
 
@@ -519,10 +519,10 @@ test.describe('Test execution', () => {
     await page.getByRole('button', { name: 'Dashboard' }).click();
 
     await expect(
-      page.getByRole('article', { name: 'Passed: 1' }),
+      page.getByRole('button', { name: 'Passed: 1' }),
     ).toBeVisible();
     await expect(
-      page.getByRole('article', { name: 'Failed: 0' }),
+      page.getByRole('button', { name: 'Failed: 0' }),
     ).toBeVisible();
   });
 });

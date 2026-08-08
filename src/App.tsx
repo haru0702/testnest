@@ -1,10 +1,14 @@
 import { useState } from 'react';
 import { Sidebar } from './components/Sidebar';
 import type { DefectExecutionContext } from './components/DefectDetails';
-import type { DefectFormValues } from './defects/defect';
-import { DashboardPage } from './pages/DashboardPage';
+import type { DefectFilters, DefectFormValues } from './defects/defect';
+import {
+  DashboardPage,
+  type DashboardTestCaseFilter,
+} from './pages/DashboardPage';
 import { DefectsPage } from './pages/DefectsPage';
 import { ProjectsPage } from './pages/ProjectsPage';
+import { ReportsPage } from './pages/ReportsPage';
 import { TestCasesPage } from './pages/TestCasesPage';
 import { TestExecutionPage } from './pages/TestExecutionPage';
 import { NAV_ITEMS, type NavItemId } from './navigation';
@@ -15,15 +19,24 @@ export default function App() {
     useState<DefectFormValues | null>(null);
   const [executionContext, setExecutionContext] =
     useState<DefectExecutionContext | null>(null);
+  const [testCaseNavigationFilter, setTestCaseNavigationFilter] =
+    useState<DashboardTestCaseFilter | null>(null);
+  const [defectNavigationFilters, setDefectNavigationFilters] =
+    useState<Partial<DefectFilters>>({});
   const activeNavItem = NAV_ITEMS.find((item) => item.id === activePage);
 
   function handleNavigate(page: NavItemId) {
     if (page === 'defects') {
       setDefectDraft(null);
+      setDefectNavigationFilters({});
     }
 
     if (page === 'testExecution') {
       setExecutionContext(null);
+    }
+
+    if (page === 'testCases') {
+      setTestCaseNavigationFilter(null);
     }
 
     setActivePage(page);
@@ -39,14 +52,36 @@ export default function App() {
     setActivePage('testExecution');
   }
 
+  function openFilteredTestCases(filter: DashboardTestCaseFilter) {
+    setTestCaseNavigationFilter(filter);
+    setActivePage('testCases');
+  }
+
+  function openFilteredDefects(filters: Partial<DefectFilters>) {
+    setDefectNavigationFilters(filters);
+    setDefectDraft(null);
+    setActivePage('defects');
+  }
+
   function renderPage() {
     switch (activePage) {
       case 'dashboard':
-        return <DashboardPage />;
+        return (
+          <DashboardPage
+            onOpenTestCases={openFilteredTestCases}
+            onOpenDefects={openFilteredDefects}
+          />
+        );
       case 'projects':
         return <ProjectsPage />;
       case 'testCases':
-        return <TestCasesPage />;
+        return (
+          <TestCasesPage
+            initialProjectId={testCaseNavigationFilter?.projectId}
+            initialScenarioId={testCaseNavigationFilter?.scenarioId}
+            initialStatusFilter={testCaseNavigationFilter?.status}
+          />
+        );
       case 'testExecution':
         return (
           <TestExecutionPage
@@ -58,10 +93,13 @@ export default function App() {
         return (
           <DefectsPage
             initialDraft={defectDraft}
+            initialFilters={defectNavigationFilters}
             onDraftConsumed={() => setDefectDraft(null)}
             onViewExecution={openLinkedExecution}
           />
         );
+      case 'reports':
+        return <ReportsPage />;
     }
   }
 
@@ -79,7 +117,7 @@ export default function App() {
         >
           <div className="mx-auto max-w-6xl">
             <p className="text-sm font-medium text-teal-700">
-              Defect Management
+              Enhanced Dashboard and Reports
             </p>
             <h2
               id="page-title"

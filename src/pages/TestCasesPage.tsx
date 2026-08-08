@@ -72,7 +72,17 @@ import {
 
 type FormMode = 'create' | 'edit' | null;
 
-export function TestCasesPage() {
+type TestCasesPageProps = {
+  initialProjectId?: string;
+  initialScenarioId?: string;
+  initialStatusFilter?: ExecutionStatus;
+};
+
+export function TestCasesPage({
+  initialProjectId = '',
+  initialScenarioId = '',
+  initialStatusFilter,
+}: TestCasesPageProps) {
   const [projects] = useState(() => loadProjects());
   const [scenarios, setScenarios] = useState<TestScenario[]>(() =>
     loadScenarios(),
@@ -81,8 +91,8 @@ export function TestCasesPage() {
     loadTestCases(),
   );
   const [executions] = useState(() => loadExecutions());
-  const [selectedProjectId, setSelectedProjectId] = useState('');
-  const [selectedScenarioId, setSelectedScenarioId] = useState('');
+  const [selectedProjectId, setSelectedProjectId] = useState(initialProjectId);
+  const [selectedScenarioId, setSelectedScenarioId] = useState(initialScenarioId);
   const [scenarioFormMode, setScenarioFormMode] = useState<FormMode>(null);
   const [editingScenario, setEditingScenario] =
     useState<TestScenario | null>(null);
@@ -101,7 +111,7 @@ export function TestCasesPage() {
   const [testCaseSearch, setTestCaseSearch] = useState('');
   const [testCaseStatusFilter, setTestCaseStatusFilter] = useState<
     'all' | ExecutionStatus
-  >('all');
+  >(initialStatusFilter ?? 'all');
   const [testCaseSortKey, setTestCaseSortKey] =
     useState<TestCaseSortKey>('updatedDate');
   const [testCaseSortDirection, setTestCaseSortDirection] =
