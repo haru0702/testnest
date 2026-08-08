@@ -14,6 +14,8 @@ type TestCaseTableProps = {
   onSort: (sortKey: TestCaseSortKey) => void;
   onEdit: (testCase: TestCase) => void;
   onRequestDelete: (testCase: TestCase) => void;
+  canEdit?: boolean;
+  canDelete?: boolean;
 };
 
 const dateFormatter = new Intl.DateTimeFormat(undefined, {
@@ -33,7 +35,10 @@ export function TestCaseTable({
   onSort,
   onEdit,
   onRequestDelete,
+  canEdit = true,
+  canDelete = true,
 }: TestCaseTableProps) {
+  const showActions = canEdit || canDelete;
   return (
     <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
       <table
@@ -67,7 +72,7 @@ export function TestCaseTable({
               direction={sortDirection}
               onSort={onSort}
             />
-            <TableHeader label="Actions" />
+            {showActions ? <TableHeader label="Actions" /> : null}
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-200 bg-white">
@@ -100,26 +105,26 @@ export function TestCaseTable({
               <td className="whitespace-nowrap px-4 py-4 align-top text-sm text-slate-600">
                 {formatDate(testCase.updatedDate)}
               </td>
-              <td className="whitespace-nowrap px-4 py-4 align-top text-sm">
+              {showActions ? <td className="whitespace-nowrap px-4 py-4 align-top text-sm">
                 <div className="flex gap-2">
-                  <button
+                  {canEdit ? <button
                     type="button"
                     aria-label={`Edit ${testCase.name}`}
                     className="rounded-md border border-slate-300 bg-white px-3 py-1.5 font-semibold text-slate-700 transition hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-700"
                     onClick={() => onEdit(testCase)}
                   >
                     Edit
-                  </button>
-                  <button
+                  </button> : null}
+                  {canDelete ? <button
                     type="button"
                     aria-label={`Delete ${testCase.name}`}
                     className="rounded-md border border-rose-200 bg-white px-3 py-1.5 font-semibold text-rose-700 transition hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700"
                     onClick={() => onRequestDelete(testCase)}
                   >
                     Delete
-                  </button>
+                  </button> : null}
                 </div>
-              </td>
+              </td> : null}
             </tr>
           ))}
         </tbody>

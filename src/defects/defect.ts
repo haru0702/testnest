@@ -9,6 +9,8 @@ import {
   matchesSearch,
 } from '../table/tableUtils';
 import type { TestCase } from '../testCases/testCase';
+import type { AuditedRecord, UserReference } from '../users/user';
+import { createUserReference, type User } from '../users/user';
 
 export const DEFECT_STATUSES = [
   'Open',
@@ -44,7 +46,7 @@ export type DefectSeverity = (typeof DEFECT_SEVERITIES)[number];
 export type DefectPriority = (typeof DEFECT_PRIORITIES)[number];
 export type ExternalSystem = (typeof EXTERNAL_SYSTEMS)[number];
 
-export type Defect = {
+export type Defect = AuditedRecord & {
   id: string;
   defectId: string;
   title: string;
@@ -57,6 +59,8 @@ export type Defect = {
   priority: DefectPriority;
   assigneeName: string;
   reporterName: string;
+  assignee?: UserReference;
+  reporter?: UserReference;
   projectId?: string;
   scenarioId?: string;
   testCaseId?: string;
@@ -84,6 +88,10 @@ export type DefectFormValues = Omit<
   | 'externalSystem'
   | 'externalIssueKey'
   | 'externalIssueUrl'
+  | 'assignee'
+  | 'reporter'
+  | 'createdBy'
+  | 'updatedBy'
 > & {
   projectId: string;
   scenarioId: string;
@@ -93,6 +101,8 @@ export type DefectFormValues = Omit<
   externalSystem: '' | ExternalSystem;
   externalIssueKey: string;
   externalIssueUrl: string;
+  assigneeUserId?: string;
+  reporterUserId?: string;
 };
 
 export type DefectFormErrors = {
@@ -124,6 +134,8 @@ export const EMPTY_DEFECT_FORM_VALUES: DefectFormValues = {
   externalSystem: '',
   externalIssueKey: '',
   externalIssueUrl: '',
+  assigneeUserId: '',
+  reporterUserId: '',
 };
 
 export function getDefectTitleError(title: string) {
@@ -158,16 +170,24 @@ export function validateDefectForm(
   };
 }
 
-export function normalizeDefectValues(values: DefectFormValues) {
+export function normalizeDefectValues(
+  values: DefectFormValues,
+  users: readonly User[] = [],
+) {
+  const assignee = users.find((user) => user.id === values.assigneeUserId);
+  const reporter = users.find((user) => user.id === values.reporterUserId);
+  const { assigneeUserId: _assigneeUserId, reporterUserId: _reporterUserId, ...recordValues } = values;
   const normalized = {
-    ...values,
+    ...recordValues,
     title: values.title.trim(),
     description: values.description.trim(),
     stepsToReproduce: values.stepsToReproduce.trim(),
     expectedResult: values.expectedResult.trim(),
     actualResult: values.actualResult.trim(),
-    assigneeName: values.assigneeName.trim(),
-    reporterName: values.reporterName.trim(),
+    assigneeName: assignee?.displayName ?? values.assigneeName.trim(),
+    reporterName: reporter?.displayName ?? values.reporterName.trim(),
+    assignee: assignee ? createUserReference(assignee) : undefined,
+    reporter: reporter ? createUserReference(reporter) : undefined,
     projectId: values.projectId || undefined,
     scenarioId: values.scenarioId || undefined,
     testCaseId: values.testCaseId || undefined,
@@ -197,12 +217,12 @@ export function generateNextDefectId(defects: readonly Pick<Defect, 'defectId'>[
 export function createDefect(
   values: DefectFormValues,
   existingDefects: readonly Defect[],
-  options: { id?: string; now?: string } = {},
+  options: { id?: string; now?: string; users?: readonly User[] } = {},
 ): Defect {
   const now = options.now ?? new Date().toISOString();
 
   return {
-    ...normalizeDefectValues(values),
+    ...normalizeDefectValues(values, options.users),
     id: options.id ?? crypto.randomUUID(),
     defectId: generateNextDefectId(existingDefects),
     createdDate: now,
@@ -231,6 +251,8 @@ export function getDefectFormValues(defect: Defect): DefectFormValues {
     externalSystem: defect.externalSystem ?? '',
     externalIssueKey: defect.externalIssueKey ?? '',
     externalIssueUrl: defect.externalIssueUrl ?? '',
+    assigneeUserId: defect.assignee?.userId ?? '',
+    reporterUserId: defect.reporter?.userId ?? '',
   };
 }
 

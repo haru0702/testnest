@@ -13,6 +13,8 @@ type DefectTableProps = {
   onView: (defect: Defect) => void;
   onEdit: (defect: Defect) => void;
   onRequestDelete: (defect: Defect) => void;
+  canEdit?: (defect: Defect) => boolean;
+  canDelete?: boolean;
 };
 
 const dateFormatter = new Intl.DateTimeFormat(undefined, {
@@ -29,6 +31,8 @@ export function DefectTable({
   onView,
   onEdit,
   onRequestDelete,
+  canEdit = () => true,
+  canDelete = true,
 }: DefectTableProps) {
   return (
     <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
@@ -58,14 +62,14 @@ export function DefectTable({
                 <td className="whitespace-nowrap px-4 py-4 text-sm"><DefectBadge kind="status" value={defect.status} /></td>
                 <td className="whitespace-nowrap px-4 py-4 text-sm"><DefectBadge kind="severity" value={defect.severity} /></td>
                 <td className="whitespace-nowrap px-4 py-4 text-sm"><DefectBadge kind="priority" value={defect.priority} /></td>
-                <td className="whitespace-nowrap px-4 py-4 text-sm text-slate-700">{defect.assigneeName || 'Unassigned'}</td>
+                <td className="whitespace-nowrap px-4 py-4 text-sm text-slate-700">{defect.assignee?.displayName || defect.assigneeName || 'Unassigned'}</td>
                 <td className="whitespace-nowrap px-4 py-4 text-sm text-slate-600">{dateFormatter.format(new Date(defect.createdDate))}</td>
                 <td className="whitespace-nowrap px-4 py-4 text-sm text-slate-600">{dateFormatter.format(new Date(defect.updatedDate))}</td>
                 <td className="whitespace-nowrap px-4 py-4 text-sm">
                   <div className="flex gap-2">
                     <button type="button" aria-label={`View ${defect.defectId}`} className="rounded-md border border-teal-200 bg-white px-3 py-1.5 font-semibold text-teal-700 transition hover:bg-teal-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700" onClick={() => onView(defect)}>View</button>
-                    <button type="button" aria-label={`Edit ${defect.defectId}`} className="rounded-md border border-slate-300 bg-white px-3 py-1.5 font-semibold text-slate-700 transition hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-700" onClick={() => onEdit(defect)}>Edit</button>
-                    <button type="button" aria-label={`Delete ${defect.defectId}`} className="rounded-md border border-rose-200 bg-white px-3 py-1.5 font-semibold text-rose-700 transition hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700" onClick={() => onRequestDelete(defect)}>Delete</button>
+                    {canEdit(defect) ? <button type="button" aria-label={`Edit ${defect.defectId}`} className="rounded-md border border-slate-300 bg-white px-3 py-1.5 font-semibold text-slate-700 transition hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-700" onClick={() => onEdit(defect)}>Edit</button> : null}
+                    {canDelete ? <button type="button" aria-label={`Delete ${defect.defectId}`} className="rounded-md border border-rose-200 bg-white px-3 py-1.5 font-semibold text-rose-700 transition hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700" onClick={() => onRequestDelete(defect)}>Delete</button> : null}
                   </div>
                 </td>
               </tr>

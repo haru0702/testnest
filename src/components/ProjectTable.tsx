@@ -15,6 +15,8 @@ type ProjectTableProps = {
   onSort: (sortKey: ProjectSortKey) => void;
   onEdit: (project: Project) => void;
   onRequestDelete: (project: Project) => void;
+  canEdit?: boolean;
+  canDelete?: boolean;
 };
 
 const statusClasses: Record<ProjectStatus, string> = {
@@ -39,7 +41,10 @@ export function ProjectTable({
   onSort,
   onEdit,
   onRequestDelete,
+  canEdit = true,
+  canDelete = true,
 }: ProjectTableProps) {
+  const showActions = canEdit || canDelete;
   return (
     <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
       <table className="min-w-full divide-y divide-slate-200" aria-label="Projects">
@@ -75,7 +80,7 @@ export function ProjectTable({
               direction={sortDirection}
               onSort={onSort}
             />
-            <TableHeader label="Actions" />
+            {showActions ? <TableHeader label="Actions" /> : null}
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-200 bg-white">
@@ -106,26 +111,26 @@ export function ProjectTable({
               <td className="whitespace-nowrap px-4 py-4 text-sm text-slate-600">
                 {formatDate(project.updatedDate)}
               </td>
-              <td className="whitespace-nowrap px-4 py-4 text-sm">
+              {showActions ? <td className="whitespace-nowrap px-4 py-4 text-sm">
                 <div className="flex gap-2">
-                  <button
+                  {canEdit ? <button
                     type="button"
                     aria-label={`Edit ${project.name}`}
                     className="rounded-md border border-slate-300 bg-white px-3 py-1.5 font-semibold text-slate-700 transition hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-700"
                     onClick={() => onEdit(project)}
                   >
                     Edit
-                  </button>
-                  <button
+                  </button> : null}
+                  {canDelete ? <button
                     type="button"
                     aria-label={`Delete ${project.name}`}
                     className="rounded-md border border-rose-200 bg-white px-3 py-1.5 font-semibold text-rose-700 transition hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700"
                     onClick={() => onRequestDelete(project)}
                   >
                     Delete
-                  </button>
+                  </button> : null}
                 </div>
-              </td>
+              </td> : null}
             </tr>
           ))}
         </tbody>

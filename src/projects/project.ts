@@ -1,8 +1,10 @@
+import type { AuditedRecord } from '../users/user';
+
 export const PROJECT_STATUSES = ['Active', 'On Hold', 'Completed'] as const;
 
 export type ProjectStatus = (typeof PROJECT_STATUSES)[number];
 
-export type Project = {
+export type Project = AuditedRecord & {
   id: string;
   name: string;
   description: string;

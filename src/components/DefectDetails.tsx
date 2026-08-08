@@ -3,6 +3,7 @@ import type { TestExecution } from '../executions/execution';
 import type { Project } from '../projects/project';
 import type { TestCase, TestScenario } from '../testCases/testCase';
 import { DefectBadge } from './DefectBadge';
+import { getUserReferenceLabel } from '../users/user';
 
 export type DefectExecutionContext = {
   projectId: string;
@@ -69,8 +70,10 @@ export function DefectDetails({
           <div><dt className="font-medium text-slate-600">Status</dt><dd className="mt-1"><DefectBadge kind="status" value={defect.status} /></dd></div>
           <div><dt className="font-medium text-slate-600">Severity</dt><dd className="mt-1"><DefectBadge kind="severity" value={defect.severity} /></dd></div>
           <div><dt className="font-medium text-slate-600">Priority</dt><dd className="mt-1"><DefectBadge kind="priority" value={defect.priority} /></dd></div>
-          <Detail label="Assignee" value={defect.assigneeName || 'Unassigned'} />
-          <Detail label="Reporter" value={defect.reporterName || 'Not provided'} />
+          <Detail label="Assignee" value={defect.assignee?.displayName || defect.assigneeName || 'Unassigned'} />
+          <Detail label="Reporter" value={defect.reporter?.displayName || defect.reporterName || 'Not provided'} />
+          <Detail label="Created By" value={getUserReferenceLabel(defect.createdBy)} />
+          <Detail label="Updated By" value={getUserReferenceLabel(defect.updatedBy)} />
         </dl>
       </DetailsSection>
 

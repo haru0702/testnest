@@ -5,6 +5,7 @@ import {
   type StepExecutionResult,
   type TestExecution,
 } from './execution';
+import type { UserReference } from '../users/user';
 
 export const EXECUTION_STORAGE_KEY = 'testnest.executions';
 
@@ -14,6 +15,19 @@ type ReadWriteStorage = ReadStorage & WriteStorage;
 
 function isString(value: unknown): value is string {
   return typeof value === 'string';
+}
+
+function isOptionalUserReference(value: unknown): value is UserReference | undefined {
+  if (value === undefined) {
+    return true;
+  }
+
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const reference = value as Record<string, unknown>;
+  return isString(reference.userId) && isString(reference.displayName);
 }
 
 function isExecutionStatus(value: unknown): value is ExecutionStatus {
@@ -66,6 +80,7 @@ function parseTestExecution(value: unknown): TestExecution | null {
     isString(execution.notes) &&
     Array.isArray(execution.stepResults) &&
     execution.stepResults.every(isStepExecutionResult) &&
+    isOptionalUserReference(execution.executedBy) &&
     executionMode !== null;
 
   if (!isValid || executionMode === null) {

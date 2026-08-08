@@ -35,6 +35,9 @@ export type ReportFilters = {
   defectStatus: 'all' | DefectStatus;
   severity: 'all' | DefectSeverity;
   priority: 'all' | DefectPriority;
+  executedByUserId: string;
+  defectAssigneeUserId: string;
+  defectReporterUserId: string;
 };
 
 export const EMPTY_REPORT_FILTERS: ReportFilters = {
@@ -46,6 +49,9 @@ export const EMPTY_REPORT_FILTERS: ReportFilters = {
   defectStatus: 'all',
   severity: 'all',
   priority: 'all',
+  executedByUserId: 'all',
+  defectAssigneeUserId: 'all',
+  defectReporterUserId: 'all',
 };
 
 export const INVALID_DATE_RANGE_ERROR =
@@ -109,7 +115,9 @@ export function filterReportData(
         execution.executionDate,
         filters.fromDate,
         filters.toDate,
-      ),
+      ) &&
+      (filters.executedByUserId === 'all' ||
+        execution.executedBy?.userId === filters.executedByUserId),
   );
   const latestExecutions = getLatestExecutionsByTestCase(executions);
   const testCases = contextualTestCases.filter((testCase) => {
@@ -133,7 +141,11 @@ export function filterReportData(
       (filters.defectStatus === 'all' ||
         defect.status === filters.defectStatus) &&
       (filters.severity === 'all' || defect.severity === filters.severity) &&
-      (filters.priority === 'all' || defect.priority === filters.priority),
+      (filters.priority === 'all' || defect.priority === filters.priority) &&
+      (filters.defectAssigneeUserId === 'all' ||
+        defect.assignee?.userId === filters.defectAssigneeUserId) &&
+      (filters.defectReporterUserId === 'all' ||
+        defect.reporter?.userId === filters.defectReporterUserId),
   );
 
   return {
@@ -361,11 +373,14 @@ export type TraceabilityRow = {
   latestStatus: ExecutionStatus;
   latestExecution: string;
   latestExecutionDate: string;
+  executedBy: string;
   defectId: string;
   defectStatus: string;
   severity: string;
   externalSystem: string;
   externalIssueKey: string;
+  defectAssignee: string;
+  defectReporter: string;
 };
 
 export function getTraceabilityRows(
@@ -404,11 +419,14 @@ export function getTraceabilityRows(
           ? `EX-${latestExecution.id.slice(0, 8).toLocaleUpperCase()}`
           : 'Not executed',
         latestExecutionDate: latestExecution?.executionDate ?? '',
+        executedBy: latestExecution?.executedBy?.displayName ?? 'Legacy Record',
         defectId: defect?.defectId ?? '',
         defectStatus: defect?.status ?? '',
         severity: defect?.severity ?? '',
         externalSystem: defect?.externalSystem ?? '',
         externalIssueKey: defect?.externalIssueKey ?? '',
+        defectAssignee: defect?.assignee?.displayName ?? defect?.assigneeName ?? '',
+        defectReporter: defect?.reporter?.displayName ?? defect?.reporterName ?? '',
       }),
     );
 
@@ -653,11 +671,14 @@ export function buildReportExportRows(
         'Latest Status': row.latestStatus,
         'Latest Execution': row.latestExecution,
         'Latest Execution Date': row.latestExecutionDate,
+        'Executed By': row.executedBy,
         'Defect ID': row.defectId,
         'Defect Status': row.defectStatus,
         Severity: row.severity,
         'External System': row.externalSystem,
         'External Issue Key': row.externalIssueKey,
+        'Defect Assignee': row.defectAssignee,
+        'Defect Reporter': row.defectReporter,
       }));
     case 'attention':
       return getAttentionRows(data).map((row) => ({

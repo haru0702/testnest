@@ -9,6 +9,7 @@ import {
   type DefectStatus,
   type ExternalSystem,
 } from './defect';
+import type { UserReference } from '../users/user';
 
 export const DEFECT_STORAGE_KEY = 'testnest.defects';
 
@@ -21,6 +22,19 @@ function isString(value: unknown): value is string {
 
 function isOptionalString(value: unknown) {
   return value === undefined || isString(value);
+}
+
+function isOptionalUserReference(value: unknown): value is UserReference | undefined {
+  if (value === undefined) {
+    return true;
+  }
+
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const reference = value as Record<string, unknown>;
+  return isString(reference.userId) && isString(reference.displayName);
 }
 
 function isDefect(value: unknown): value is Defect {
@@ -43,6 +57,8 @@ function isDefect(value: unknown): value is Defect {
     DEFECT_PRIORITIES.includes(defect.priority as DefectPriority) &&
     isString(defect.assigneeName) &&
     isString(defect.reporterName) &&
+    isOptionalUserReference(defect.assignee) &&
+    isOptionalUserReference(defect.reporter) &&
     isOptionalString(defect.projectId) &&
     isOptionalString(defect.scenarioId) &&
     isOptionalString(defect.testCaseId) &&
@@ -55,7 +71,9 @@ function isDefect(value: unknown): value is Defect {
     isOptionalString(defect.externalIssueKey) &&
     isOptionalString(defect.externalIssueUrl) &&
     isString(defect.createdDate) &&
-    isString(defect.updatedDate)
+    isString(defect.updatedDate) &&
+    isOptionalUserReference(defect.createdBy) &&
+    isOptionalUserReference(defect.updatedBy)
   );
 }
 

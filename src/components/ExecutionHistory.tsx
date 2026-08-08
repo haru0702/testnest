@@ -20,6 +20,7 @@ import {
   type SortDirection,
 } from '../table/tableUtils';
 import type { TestCase } from '../testCases/testCase';
+import { getUserReferenceLabel } from '../users/user';
 import { StatusBadge } from './StatusBadge';
 import {
   ClearFiltersButton,
@@ -37,6 +38,7 @@ type ExecutionHistoryProps = {
   testCase: TestCase;
   initialSelectedExecutionId?: string;
   onCreateDefect: (draft: DefectFormValues) => void;
+  canCreateDefect?: boolean;
 };
 
 const dateFormatter = new Intl.DateTimeFormat(undefined, {
@@ -59,6 +61,7 @@ export function ExecutionHistory({
   testCase,
   initialSelectedExecutionId,
   onCreateDefect,
+  canCreateDefect = true,
 }: ExecutionHistoryProps) {
   const [selectedExecution, setSelectedExecution] = useState<TestExecution | null>(
     () =>
@@ -183,6 +186,7 @@ export function ExecutionHistory({
                         onSort={handleSort}
                       />
                       <TableHeader label="Execution Mode" />
+                      <TableHeader label="Executed By" />
                       <SortableTableHeader
                         label="Overall Status"
                         sortKey="overallStatus"
@@ -206,6 +210,9 @@ export function ExecutionHistory({
                       <td className="whitespace-nowrap px-4 py-4 text-sm text-slate-700">
                         {formatExecutionMode(execution.executionMode)}
                       </td>
+                      <td className="whitespace-nowrap px-4 py-4 text-sm text-slate-700">
+                        {getUserReferenceLabel(execution.executedBy)}
+                      </td>
                       <td className="whitespace-nowrap px-4 py-4 text-sm">
                         <StatusBadge status={execution.overallStatus} />
                       </td>
@@ -222,7 +229,7 @@ export function ExecutionHistory({
                           >
                             View Details
                           </button>
-                          {execution.overallStatus === 'Failed' || execution.overallStatus === 'Blocked' ? (
+                          {canCreateDefect && (execution.overallStatus === 'Failed' || execution.overallStatus === 'Blocked') ? (
                             <button
                               type="button"
                               aria-label={`Create defect from ${execution.overallStatus} execution ${(paginatedExecutions.page - 1) * TABLE_PAGE_SIZE + index + 1}`}
@@ -268,6 +275,9 @@ export function ExecutionHistory({
               <p className="mt-1 text-sm font-medium text-slate-700">
                 {formatExecutionMode(selectedExecution.executionMode)}
               </p>
+              <p className="mt-1 text-sm text-slate-600">
+                Executed By: {getUserReferenceLabel(selectedExecution.executedBy)}
+              </p>
             </div>
             <StatusBadge status={selectedExecution.overallStatus} />
           </div>
@@ -275,7 +285,7 @@ export function ExecutionHistory({
             <span className="font-medium text-slate-800">Notes:</span>{' '}
             {selectedExecution.notes || 'No notes'}
           </p>
-          {selectedExecution.overallStatus === 'Failed' || selectedExecution.overallStatus === 'Blocked' ? (
+          {canCreateDefect && (selectedExecution.overallStatus === 'Failed' || selectedExecution.overallStatus === 'Blocked') ? (
             <button
               type="button"
               className="mt-4 rounded-md border border-rose-200 bg-white px-3 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700"

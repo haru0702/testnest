@@ -40,12 +40,17 @@ import {
   type SortDirection,
 } from '../table/tableUtils';
 import { loadScenarios, loadTestCases } from '../testCases/testCaseStorage';
+import { assignCreatedAudit, assignUpdatedAudit, type User } from '../users/user';
+import { canDeleteDefect, canEditDefect, hasPermission, PERMISSION_DENIED_MESSAGE } from '../users/permissions';
 
 type DefectsPageProps = {
   initialDraft?: DefectFormValues | null;
   initialFilters?: Partial<DefectFilters>;
   onDraftConsumed?: () => void;
   onViewExecution?: (context: DefectExecutionContext) => void;
+  users: User[];
+  activeUser: User;
+  onPermissionDenied: () => void;
 };
 
 type FormMode = 'create' | 'edit' | null;
@@ -55,14 +60,20 @@ export function DefectsPage({
   initialFilters = {},
   onDraftConsumed = () => undefined,
   onViewExecution = () => undefined,
+  users,
+  activeUser,
+  onPermissionDenied,
 }: DefectsPageProps) {
   const [projects] = useState(() => loadProjects());
   const [scenarios] = useState(() => loadScenarios());
   const [testCases] = useState(() => loadTestCases());
   const [executions] = useState(() => loadExecutions());
   const [defects, setDefects] = useState<Defect[]>(() => loadDefects());
-  const [formMode, setFormMode] = useState<FormMode>(initialDraft ? 'create' : null);
-  const [draft, setDraft] = useState<DefectFormValues | null>(initialDraft);
+  const canCreate = hasPermission(activeUser, 'canCreateDefects');
+  const canAssign = hasPermission(activeUser, 'canAssignDefects');
+  const canManageStatus = hasPermission(activeUser, 'canManageDefectStatus') || canCreate;
+  const [formMode, setFormMode] = useState<FormMode>(initialDraft && canCreate ? 'create' : null);
+  const [draft, setDraft] = useState<DefectFormValues | null>(initialDraft && canCreate ? initialDraft : null);
   const [editingDefect, setEditingDefect] = useState<Defect | null>(null);
   const [selectedDefect, setSelectedDefect] = useState<Defect | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Defect | null>(null);
@@ -125,18 +136,30 @@ export function DefectsPage({
   }
 
   function openCreateForm() {
+    if (!canCreate) {
+      onPermissionDenied();
+      return;
+    }
     setEditingDefect(null);
     setSelectedDefect(null);
     setFormMode('create');
   }
 
   function openEditForm(defect: Defect) {
+    if (!canEditDefect(activeUser, defect)) {
+      onPermissionDenied();
+      return;
+    }
     setEditingDefect(defect);
     setSelectedDefect(null);
     setFormMode('edit');
   }
 
   function handleSubmit(values: DefectFormValues) {
+    if (editingDefect ? !canEditDefect(activeUser, editingDefect) : !canCreate) {
+      onPermissionDenied();
+      return { titleError: PERMISSION_DENIED_MESSAGE, externalIssueUrlError: null };
+    }
     const errors = validateDefectForm(values);
 
     if (errors.titleError || errors.externalIssueUrlError) {
@@ -146,14 +169,14 @@ export function DefectsPage({
     const nextDefects = editingDefect
       ? defects.map((defect) =>
           defect.id === editingDefect.id
-            ? {
+            ? assignUpdatedAudit({
                 ...defect,
-                ...normalizeDefectValues(values),
+                ...normalizeDefectValues(values, users),
                 updatedDate: new Date().toISOString(),
-              }
+              }, activeUser)
             : defect,
         )
-      : [...defects, createDefect(values, defects)];
+      : [...defects, assignCreatedAudit(createDefect(values, defects, { users }), activeUser)];
 
     saveDefects(nextDefects);
     setDefects(nextDefects);
@@ -163,6 +186,10 @@ export function DefectsPage({
 
   function handleDelete() {
     if (!deleteTarget) {
+      return;
+    }
+    if (!canDeleteDefect(activeUser)) {
+      onPermissionDenied();
       return;
     }
 
@@ -181,7 +208,7 @@ export function DefectsPage({
         <p className="max-w-3xl text-sm leading-6 text-slate-600">
           Track defects, testing context, ownership, and external work-item links.
         </p>
-        {formMode || defects.length === 0 ? null : (
+        {formMode || defects.length === 0 || !canCreate ? null : (
           <button type="button" className="rounded-md bg-teal-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700" onClick={openCreateForm}>
             Add Defect
           </button>
@@ -207,6 +234,10 @@ export function DefectsPage({
             scenarios={scenarios}
             testCases={testCases}
             executions={executions}
+            users={users}
+            activeUser={activeUser}
+            canAssignDefects={canAssign}
+            canManageStatus={canManageStatus}
             onSubmit={handleSubmit}
             onCancel={closeForm}
           />
@@ -226,9 +257,9 @@ export function DefectsPage({
             <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600">
               Add a standalone defect or create one from a Failed or Blocked execution.
             </p>
-            <button type="button" className="mt-5 rounded-md bg-teal-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700" onClick={openCreateForm}>
+            {canCreate ? <button type="button" className="mt-5 rounded-md bg-teal-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700" onClick={openCreateForm}>
               Add Defect
-            </button>
+            </button> : null}
           </div>
         ) : (
           <>
@@ -249,7 +280,7 @@ export function DefectsPage({
 
             {filteredDefects.length > 0 ? (
               <>
-                <DefectTable defects={paginatedDefects.items} projects={projects} sortKey={sortKey} sortDirection={sortDirection} onSort={handleSort} onView={setSelectedDefect} onEdit={openEditForm} onRequestDelete={setDeleteTarget} />
+                <DefectTable defects={paginatedDefects.items} projects={projects} sortKey={sortKey} sortDirection={sortDirection} onSort={handleSort} onView={setSelectedDefect} onEdit={openEditForm} onRequestDelete={setDeleteTarget} canEdit={(defect) => canEditDefect(activeUser, defect)} canDelete={canDeleteDefect(activeUser)} />
                 <TablePagination page={paginatedDefects.page} totalPages={paginatedDefects.totalPages} onPageChange={setPage} />
               </>
             ) : (

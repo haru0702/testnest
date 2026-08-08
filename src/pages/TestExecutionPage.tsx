@@ -23,15 +23,21 @@ import {
   loadScenarios,
   loadTestCases,
 } from '../testCases/testCaseStorage';
+import { assignExecutedBy, type User } from '../users/user';
+import { hasPermission } from '../users/permissions';
 
 type TestExecutionPageProps = {
   initialContext?: DefectExecutionContext | null;
   onCreateDefect?: (draft: DefectFormValues) => void;
+  activeUser: User;
+  onPermissionDenied: () => void;
 };
 
 export function TestExecutionPage({
   initialContext = null,
   onCreateDefect = () => undefined,
+  activeUser,
+  onPermissionDenied,
 }: TestExecutionPageProps) {
   const [projects] = useState(() => loadProjects());
   const [scenarios] = useState(() => loadScenarios());
@@ -62,6 +68,8 @@ export function TestExecutionPage({
   const executionHistory = selectedTestCase
     ? getTestCaseExecutionHistory(executions, selectedTestCase.id)
     : [];
+  const canExecute = hasPermission(activeUser, 'canExecuteTests');
+  const canCreateDefect = hasPermission(activeUser, 'canCreateDefects');
 
   function handleProjectChange(projectId: string) {
     setSelectedProjectId(projectId);
@@ -82,7 +90,11 @@ export function TestExecutionPage({
   }
 
   function saveExecution(execution: TestExecution) {
-    const nextExecutions = [...executions, execution];
+    if (!canExecute) {
+      onPermissionDenied();
+      return;
+    }
+    const nextExecutions = [...executions, assignExecutedBy(execution, activeUser)];
 
     saveExecutions(nextExecutions);
     setExecutions(nextExecutions);
@@ -113,6 +125,10 @@ export function TestExecutionPage({
     notes: string,
     overallStatus: ExecutionStatus,
   ) {
+    if (!canExecute) {
+      onPermissionDenied();
+      return;
+    }
     const base = getExecutionRecordBase(overallStatus, notes);
 
     if (!base) {
@@ -126,6 +142,10 @@ export function TestExecutionPage({
     overallStatus: ExecutionStatus,
     notes: string,
   ) {
+    if (!canExecute) {
+      onPermissionDenied();
+      return;
+    }
     const base = getExecutionRecordBase(overallStatus, notes);
 
     if (!base) {
@@ -196,7 +216,11 @@ export function TestExecutionPage({
           <div className="space-y-6">
             <TestCaseDetails testCase={selectedTestCase} />
 
-            {executionMode === 'quick' ? (
+            {!canExecute ? (
+              <p role="status" className="rounded-lg border border-slate-200 bg-white p-5 text-sm font-medium text-slate-700 shadow-sm">
+                You have read-only access to Test Execution history.
+              </p>
+            ) : executionMode === 'quick' ? (
               <QuickRunForm
                 key={`${selectedTestCase.id}-${executionHistory.length}-quick`}
                 testCase={selectedTestCase}
@@ -220,6 +244,7 @@ export function TestExecutionPage({
               testCase={selectedTestCase}
               initialSelectedExecutionId={initialContext?.executionId}
               onCreateDefect={onCreateDefect}
+              canCreateDefect={canCreateDefect}
             />
           </div>
         )}
