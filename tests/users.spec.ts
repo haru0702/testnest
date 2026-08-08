@@ -121,6 +121,17 @@ async function seed(
   await page.reload();
 }
 
+async function authenticateAs(page: Page, user: ReturnType<typeof makeUser>, profiles: ReturnType<typeof makeUser>[]) {
+  await page.evaluate(({ activeProfile, availableProfiles }) => {
+    localStorage.setItem('testnest.testAuth', JSON.stringify({
+      session: { user: { id: activeProfile.id, email: activeProfile.email } },
+      accounts: availableProfiles.map(({ id, email }) => ({ id, email })),
+      profiles: availableProfiles,
+    }));
+  }, { activeProfile: user, availableProfiles: profiles });
+  await page.reload();
+}
+
 async function openUsers(page: Page) {
   await page.getByRole('button', { name: 'Users', exact: true }).click();
   await expect(page.getByRole('heading', { level: 2, name: 'Users' })).toBeVisible();
@@ -155,7 +166,8 @@ async function selectExecutionContext(page: Page) {
 test.describe('User management, roles, and permissions', () => {
   test('creates the default Admin and opens User Management', async ({ page }) => {
     await page.goto('/');
-    await expect(page.getByLabel('Current User')).toHaveValue('testnest-local-admin');
+    await expect(page.getByLabel('Main navigation').getByText('TestNest Admin')).toBeVisible();
+    await expect(page.getByLabel('Current User')).toHaveCount(0);
     await openUsers(page);
     await expect(page.getByRole('rowheader', { name: 'TestNest Admin' })).toBeVisible();
     await expect(page.getByLabel('Total Users: 1')).toBeVisible();
@@ -259,20 +271,20 @@ test.describe('User management, roles, and permissions', () => {
     await expect(page.getByRole('region', { name: 'Edit User' }).getByRole('alert')).toHaveText('TestNest must keep at least one Active Admin.');
   });
 
-  test('switches the Active User, persists it, and excludes inactive Users', async ({ page }) => {
+  test('uses authenticated identity and removes the legacy Active User switcher', async ({ page }) => {
     await seed(page, { users: [admin, tester, inactive], activeUserId: admin.id });
-    await page.getByLabel('Current User').selectOption(tester.id);
-    await expect(page.getByLabel('Current User')).toHaveValue(tester.id);
+    await expect(page.getByLabel('Main navigation').getByText(admin.displayName)).toBeVisible();
+    await expect(page.getByLabel('Current User')).toHaveCount(0);
     await page.reload();
-    await expect(page.getByLabel('Current User')).toHaveValue(tester.id);
-    await expect(page.getByLabel('Current User').getByRole('option', { name: /Ina Inactive/ })).toHaveCount(0);
+    await expect(page.getByLabel('Main navigation').getByText(admin.displayName)).toBeVisible();
+    await expect(page.getByLabel('Current User')).toHaveCount(0);
   });
 
   for (const user of [lead, tester]) {
     test(`${user.role} cannot access User Management`, async ({ page }) => {
       await seed(page, { users: [admin, user], activeUserId: user.id });
       await expect(page.getByRole('button', { name: 'Users', exact: true })).toHaveCount(0);
-      await expect(page.getByLabel('Current User')).toHaveValue(user.id);
+      await expect(page.getByLabel('Main navigation').getByText(user.displayName)).toBeVisible();
     });
   }
 
@@ -334,13 +346,15 @@ test.describe('User management, roles, and permissions', () => {
     await expect(page.getByRole('button', { name: 'Export Report' })).toHaveCount(0);
   });
 
-  test('rejects an unauthorized page after switching from Admin', async ({ page }) => {
+  test('does not let the legacy activeUserId replace authenticated identity', async ({ page }) => {
     await seed(page, { users: [admin, tester], activeUserId: admin.id });
     await openUsers(page);
-    await page.getByLabel('Current User').selectOption(tester.id);
-    await expect(page.getByRole('heading', { level: 2, name: 'Dashboard' })).toBeVisible();
-    await expect(page.getByText('You do not have permission to perform this action.')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Users', exact: true })).toHaveCount(0);
+    await page.evaluate((testerId) => {
+      localStorage.setItem('testnest.activeUserId', testerId);
+    }, tester.id);
+    await expect(page.getByLabel('Main navigation').getByText(admin.displayName)).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Users', exact: true })).toBeVisible();
+    await expect(page.getByLabel('Current User')).toHaveCount(0);
   });
 
   test('records Created By and Updated By on Projects', async ({ page }) => {
@@ -349,7 +363,8 @@ test.describe('User management, roles, and permissions', () => {
     await page.getByRole('button', { name: 'Create Project' }).click();
     await page.getByLabel('Project Name').fill('Audited Project');
     await page.getByRole('button', { name: 'Save Project' }).click();
-    await page.getByLabel('Current User').selectOption(lead.id);
+    await authenticateAs(page, lead, [admin, lead]);
+    await page.getByRole('button', { name: 'Projects' }).click();
     await page.getByRole('button', { name: 'Edit Audited Project' }).click();
     await page.getByLabel('Description').fill('Updated by QA Lead.');
     await page.getByRole('button', { name: 'Save Project' }).click();

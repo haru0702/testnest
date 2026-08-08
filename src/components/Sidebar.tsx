@@ -1,16 +1,15 @@
 import type { NavItem, NavItemId } from '../navigation';
-import { getActiveUsers, type User } from '../users/user';
+import type { User } from '../users/user';
 
 type SidebarProps = {
   activePage: NavItemId;
   navItems: NavItem[];
   onNavigate: (page: NavItemId) => void;
-  users: User[];
   activeUser: User;
-  onSwitchUser: (userId: string) => void;
+  onLogout: () => Promise<void>;
 };
 
-export function Sidebar({ activePage, navItems, onNavigate, users, activeUser, onSwitchUser }: SidebarProps) {
+export function Sidebar({ activePage, navItems, onNavigate, activeUser, onLogout }: SidebarProps) {
   return (
     <aside
       aria-label="Main navigation"
@@ -47,24 +46,16 @@ export function Sidebar({ activePage, navItems, onNavigate, users, activeUser, o
       </nav>
 
       <div className="mt-4 border-t border-slate-700 px-2 pt-4 md:mt-auto">
-        <label className="text-xs font-semibold uppercase text-slate-400" htmlFor="current-user">
-          Current User
-        </label>
-        <select
-          id="current-user"
-          className="testnest-select mt-2 w-full rounded-md border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-white outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-900"
-          value={activeUser.id}
-          onChange={(event) => onSwitchUser(event.target.value)}
+        <p className="text-xs font-semibold uppercase text-slate-400">Signed in as</p>
+        <p className="mt-2 text-sm font-semibold text-white">{activeUser.displayName}</p>
+        <p className="mt-1 text-xs text-slate-400">{activeUser.role}</p>
+        <button
+          type="button"
+          onClick={() => void onLogout()}
+          className="mt-4 w-full rounded-md border border-slate-600 px-3 py-2 text-left text-sm font-semibold text-slate-100 transition hover:border-slate-500 hover:bg-slate-800 focus-visible:bg-slate-800"
         >
-          {getActiveUsers(users).map((user) => (
-            <option key={user.id} value={user.id}>
-              {user.displayName}
-            </option>
-          ))}
-        </select>
-        <p className="mt-2 text-xs text-slate-400">
-          {activeUser.role} - Local user simulation
-        </p>
+          Logout
+        </button>
       </div>
     </aside>
   );
