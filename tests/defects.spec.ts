@@ -129,7 +129,7 @@ async function seedData(
 }
 
 async function openDefects(page: Page) {
-  await page.getByRole('button', { name: 'Defects' }).click();
+  await page.getByRole('button', { name: 'Defects', exact: true }).click();
   await expect(
     page.getByRole('heading', { level: 2, name: 'Defects' }),
   ).toBeVisible();

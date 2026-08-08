@@ -43,6 +43,7 @@ import { loadScenarios, loadTestCases } from '../testCases/testCaseStorage';
 
 type DefectsPageProps = {
   initialDraft?: DefectFormValues | null;
+  initialFilters?: Partial<DefectFilters>;
   onDraftConsumed?: () => void;
   onViewExecution?: (context: DefectExecutionContext) => void;
 };
@@ -51,6 +52,7 @@ type FormMode = 'create' | 'edit' | null;
 
 export function DefectsPage({
   initialDraft = null,
+  initialFilters = {},
   onDraftConsumed = () => undefined,
   onViewExecution = () => undefined,
 }: DefectsPageProps) {
@@ -64,7 +66,10 @@ export function DefectsPage({
   const [editingDefect, setEditingDefect] = useState<Defect | null>(null);
   const [selectedDefect, setSelectedDefect] = useState<Defect | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Defect | null>(null);
-  const [filters, setFilters] = useState<DefectFilters>({ ...EMPTY_DEFECT_FILTERS });
+  const [filters, setFilters] = useState<DefectFilters>({
+    ...EMPTY_DEFECT_FILTERS,
+    ...initialFilters,
+  });
   const [sortKey, setSortKey] = useState<DefectSortKey>('updatedDate');
   const [sortDirection, setSortDirection] = useState<SortDirection>('descending');
   const [page, setPage] = useState(1);

@@ -3,7 +3,8 @@ export type NavItemId =
   | 'projects'
   | 'testCases'
   | 'testExecution'
-  | 'defects';
+  | 'defects'
+  | 'reports';
 
 export type NavItem = {
   id: NavItemId;
@@ -16,4 +17,5 @@ export const NAV_ITEMS: NavItem[] = [
   { id: 'testCases', label: 'Test Cases' },
   { id: 'testExecution', label: 'Test Execution' },
   { id: 'defects', label: 'Defects' },
+  { id: 'reports', label: 'Reports' },
 ];

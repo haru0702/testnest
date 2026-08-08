@@ -14,7 +14,7 @@ test.describe('TestNest smoke tests', () => {
       page.getByRole('heading', { level: 2, name: 'Dashboard' }),
     ).toBeVisible();
     await expect(page.getByText('Total Projects')).toBeVisible();
-    await expect(page.getByText('No Run')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'No Run: 0' })).toBeVisible();
   });
 
   test('sidebar navigation works', async ({ page }) => {
@@ -34,6 +34,11 @@ test.describe('TestNest smoke tests', () => {
     await page.getByRole('button', { name: 'Defects' }).click();
     await expect(
       page.getByRole('heading', { level: 2, name: 'Defects' }),
+    ).toBeVisible();
+
+    await page.getByRole('button', { name: 'Reports' }).click();
+    await expect(
+      page.getByRole('heading', { level: 2, name: 'Reports' }),
     ).toBeVisible();
 
     await page.getByRole('button', { name: 'Dashboard' }).click();

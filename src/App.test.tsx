@@ -27,6 +27,12 @@ describe('App shell', () => {
     expect(screen.getByRole('heading', { level: 2, name: 'Defects' })).toBeVisible();
     expect(screen.getByText('No defects yet')).toBeVisible();
 
+    await user.click(screen.getByRole('button', { name: 'Reports' }));
+    expect(
+      screen.getByRole('heading', { level: 2, name: 'Reports' }),
+    ).toBeVisible();
+    expect(screen.getByText('Report Filters')).toBeVisible();
+
     await user.click(screen.getByRole('button', { name: 'Dashboard' }));
     expect(screen.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
   });
