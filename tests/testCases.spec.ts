@@ -48,11 +48,13 @@ async function createTestCase(
   name = 'Valid credentials',
   stepDescription = 'Enter valid credentials',
   expectedResult = 'The user is signed in',
+  description = 'Successful login coverage.',
+  precondition = 'A registered user exists.',
 ) {
   await page.getByRole('button', { name: 'Create Test Case' }).click();
   await page.getByLabel('Test Case Name').fill(name);
-  await page.getByLabel('Test Description').fill('Successful login coverage.');
-  await page.getByLabel('Precondition').fill('A registered user exists.');
+  await page.getByLabel('Test Description').fill(description);
+  await page.getByLabel('Precondition').fill(precondition);
   await page.getByLabel('Step 1 Description').fill(stepDescription);
   await page.getByLabel('Step 1 Expected Result').fill(expectedResult);
   await page.getByRole('button', { name: 'Save Test Case' }).click();
@@ -171,16 +173,52 @@ test.describe('Test scenario and test case management', () => {
     await expect(page.getByText('No scenarios yet')).toBeVisible();
   });
 
-  test('searches scenarios by name', async ({ page }) => {
+  test('searches scenarios by name and description', async ({ page }) => {
     await prepareProject(page);
-    await createScenario(page, 'Login');
-    await createScenario(page, 'Checkout');
-    await page.getByLabel('Search scenarios').fill('log');
+    await createScenario(page, 'Login', 'Authentication coverage.');
+    await createScenario(page, 'Checkout', 'Purchase flow coverage.');
+    await page.getByLabel('Search scenarios').fill('  LOG  ');
 
     await expect(page.getByRole('rowheader', { name: 'Login' })).toBeVisible();
     await expect(
       page.getByRole('rowheader', { name: 'Checkout' }),
     ).toHaveCount(0);
+
+    await page.getByLabel('Search scenarios').fill('purchase');
+    await expect(
+      page.getByRole('rowheader', { name: 'Checkout' }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('rowheader', { name: 'Login' }),
+    ).toHaveCount(0);
+  });
+
+  test('filters scenarios by the selected project', async ({ page }) => {
+    await prepareProject(page, 'Customer Portal');
+    await createScenario(page, 'Login');
+    await createProject(page, 'Mobile App');
+    await selectProject(page, 'Mobile App');
+    await createScenario(page, 'Device permissions');
+
+    await page
+      .getByLabel('Project')
+      .selectOption({ label: 'Customer Portal' });
+    await expect(page.getByRole('rowheader', { name: 'Login' })).toBeVisible();
+    await expect(
+      page.getByRole('rowheader', { name: 'Device permissions' }),
+    ).toHaveCount(0);
+  });
+
+  test('sorts scenarios by name in both directions', async ({ page }) => {
+    await prepareProject(page);
+    await createScenario(page, 'Zulu Scenario');
+    await createScenario(page, 'Alpha Scenario');
+    const table = page.getByRole('table', { name: 'Test Scenarios' });
+
+    await page.getByRole('button', { name: /Sort by Scenario Name/ }).click();
+    await expect(table.getByRole('row').nth(1)).toContainText('Alpha Scenario');
+    await page.getByRole('button', { name: /Sort by Scenario Name/ }).click();
+    await expect(table.getByRole('row').nth(1)).toContainText('Zulu Scenario');
   });
 
   test('creates a test case', async ({ page }) => {
@@ -212,8 +250,7 @@ test.describe('Test scenario and test case management', () => {
     await expect(
       page.getByRole('rowheader', { name: 'Password recovery' }),
     ).toBeVisible();
-    await expect(page.getByText('Request a reset link')).toBeVisible();
-    await expect(page.getByText('Open the reset link')).toBeVisible();
+    await expect(page.getByText('2 steps', { exact: true })).toBeVisible();
   });
 
   test('validates required test case fields and test steps', async ({ page }) => {
@@ -273,7 +310,7 @@ test.describe('Test scenario and test case management', () => {
       page.getByRole('rowheader', { name: 'Successful login' }),
     ).toBeVisible();
     await expect(page.getByText('Updated login coverage.')).toBeVisible();
-    await expect(page.getByText('Submit credentials')).toBeVisible();
+    await expect(page.getByText('1 step', { exact: true })).toBeVisible();
   });
 
   test('cancels test case creation and editing without saving', async ({
@@ -317,17 +354,133 @@ test.describe('Test scenario and test case management', () => {
     await expect(page.getByText('No test cases yet')).toBeVisible();
   });
 
-  test('searches test cases by name', async ({ page }) => {
+  test('searches test cases by name, description, and precondition', async ({
+    page,
+  }) => {
     await prepareScenario(page);
-    await createTestCase(page, 'Valid credentials');
-    await createTestCase(page, 'Locked account');
-    await page.getByLabel('Search test cases').fill('valid');
+    await createTestCase(
+      page,
+      'Valid credentials',
+      'Enter credentials',
+      'Login succeeds',
+      'Authentication happy path.',
+      'A registered user exists.',
+    );
+    await createTestCase(
+      page,
+      'Locked account',
+      'Enter locked credentials',
+      'Login is rejected',
+      'Account security coverage.',
+      'A locked account exists.',
+    );
+    await page.getByLabel('Search test cases').fill('  SECURITY  ');
 
+    await expect(
+      page.getByRole('rowheader', { name: 'Locked account' }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('rowheader', { name: 'Valid credentials' }),
+    ).toHaveCount(0);
+
+    await page.getByLabel('Search test cases').fill('registered');
     await expect(
       page.getByRole('rowheader', { name: 'Valid credentials' }),
     ).toBeVisible();
     await expect(
       page.getByRole('rowheader', { name: 'Locked account' }),
+    ).toHaveCount(0);
+  });
+
+  test('filters test cases by project and scenario context', async ({ page }) => {
+    await prepareProject(page, 'Customer Portal');
+    await createScenario(page, 'Login');
+    await openScenario(page, 'Login');
+    await createTestCase(page, 'Valid credentials');
+
+    await createProject(page, 'Mobile App');
+    await selectProject(page, 'Mobile App');
+    await createScenario(page, 'Device permissions');
+    await openScenario(page, 'Device permissions');
+    await createTestCase(page, 'Allow notifications');
+
+    await page
+      .getByLabel('Project')
+      .selectOption({ label: 'Customer Portal' });
+    await page
+      .getByLabel('Test Scenario', { exact: true })
+      .selectOption({ label: 'Login' });
+    await expect(
+      page.getByRole('rowheader', { name: 'Valid credentials' }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('rowheader', { name: 'Allow notifications' }),
+    ).toHaveCount(0);
+  });
+
+  test('sorts test cases by name in both directions', async ({ page }) => {
+    await prepareScenario(page);
+    await createTestCase(page, 'Zulu Case');
+    await createTestCase(page, 'Alpha Case');
+    const table = page.getByRole('table', { name: 'Scenario Test Cases' });
+
+    await page.getByRole('button', { name: /Sort by Test Case Name/ }).click();
+    await expect(table.getByRole('row').nth(1)).toContainText('Alpha Case');
+    await page.getByRole('button', { name: /Sort by Test Case Name/ }).click();
+    await expect(table.getByRole('row').nth(1)).toContainText('Zulu Case');
+  });
+
+  test('filters test cases by latest execution status', async ({ page }) => {
+    await prepareScenario(page);
+    await createTestCase(page, 'Valid credentials');
+    await createTestCase(page, 'Locked account');
+    await page.evaluate(() => {
+      const testCases = JSON.parse(
+        localStorage.getItem('testnest.testCases') ?? '[]',
+      ) as Array<{
+        id: string;
+        projectId: string;
+        scenarioId: string;
+        name: string;
+      }>;
+      const failedCase = testCases.find(
+        (testCase) => testCase.name === 'Locked account',
+      );
+
+      if (!failedCase) {
+        throw new Error('Expected seeded test case');
+      }
+
+      localStorage.setItem(
+        'testnest.executions',
+        JSON.stringify([
+          {
+            id: 'execution-1',
+            executionMode: 'quick',
+            projectId: failedCase.projectId,
+            scenarioId: failedCase.scenarioId,
+            testCaseId: failedCase.id,
+            overallStatus: 'Failed',
+            executionDate: '2026-08-08T10:00:00.000Z',
+            notes: 'Seeded failure.',
+            stepResults: [],
+          },
+        ]),
+      );
+    });
+    await page.reload();
+    await page.getByRole('button', { name: 'Test Cases' }).click();
+    await page.getByLabel('Project').selectOption({ label: 'QA Platform' });
+    await page
+      .getByLabel('Test Scenario', { exact: true })
+      .selectOption({ label: 'Login' });
+    await page.getByLabel('Filter by Latest Status').selectOption('Failed');
+
+    await expect(
+      page.getByRole('rowheader', { name: 'Locked account' }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('rowheader', { name: 'Valid credentials' }),
     ).toHaveCount(0);
   });
 

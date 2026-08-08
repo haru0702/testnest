@@ -84,7 +84,7 @@ async function saveQuickRun(
   notes: string,
 ) {
   await startQuickRun(page);
-  await page.getByLabel('Overall Status').selectOption(status);
+  await page.getByLabel('Overall Status', { exact: true }).selectOption(status);
   await page.getByLabel('Notes / Comments').fill(notes);
   await page.getByRole('button', { name: 'Save Quick Run' }).click();
 }
@@ -162,7 +162,9 @@ test.describe('Test execution', () => {
     await setStepStatus(page, 1, 'Passed');
     await setStepStatus(page, 2, 'Passed');
 
-    await expect(page.getByLabel('Overall Status')).toContainText('Passed');
+    await expect(
+      page.getByLabel('Overall Status', { exact: true }),
+    ).toContainText('Passed');
   });
 
   test('automatically calculates Failed when any step fails', async ({
@@ -173,7 +175,9 @@ test.describe('Test execution', () => {
     await setStepStatus(page, 1, 'Blocked');
     await setStepStatus(page, 2, 'Failed');
 
-    await expect(page.getByLabel('Overall Status')).toContainText('Failed');
+    await expect(
+      page.getByLabel('Overall Status', { exact: true }),
+    ).toContainText('Failed');
   });
 
   test('automatically calculates Blocked when a step is blocked and none fail', async ({
@@ -184,7 +188,9 @@ test.describe('Test execution', () => {
     await setStepStatus(page, 1, 'Passed');
     await setStepStatus(page, 2, 'Blocked');
 
-    await expect(page.getByLabel('Overall Status')).toContainText('Blocked');
+    await expect(
+      page.getByLabel('Overall Status', { exact: true }),
+    ).toContainText('Blocked');
   });
 
   test('saves an execution in history', async ({ page }) => {
@@ -206,7 +212,9 @@ test.describe('Test execution', () => {
     await prepareExecution(page);
     await startQuickRun(page);
 
-    await expect(page.getByLabel('Overall Status')).toBeVisible();
+    await expect(
+      page.getByLabel('Overall Status', { exact: true }),
+    ).toBeVisible();
     await expect(page.getByLabel('Notes / Comments')).toBeVisible();
     await expect(page.getByLabel('Step 1 Actual Result')).toHaveCount(0);
   });
@@ -276,7 +284,9 @@ test.describe('Test execution', () => {
 
     await expect(page.getByLabel('Step 1 Status')).toHaveValue('Passed');
     await expect(page.getByLabel('Step 2 Status')).toHaveValue('Passed');
-    await expect(page.getByLabel('Overall Status')).toContainText('Passed');
+    await expect(
+      page.getByLabel('Overall Status', { exact: true }),
+    ).toContainText('Passed');
   });
 
   test('applies the selected status to every step', async ({ page }) => {
@@ -287,7 +297,9 @@ test.describe('Test execution', () => {
 
     await expect(page.getByLabel('Step 1 Status')).toHaveValue('Failed');
     await expect(page.getByLabel('Step 2 Status')).toHaveValue('Failed');
-    await expect(page.getByLabel('Overall Status')).toContainText('Failed');
+    await expect(
+      page.getByLabel('Overall Status', { exact: true }),
+    ).toContainText('Failed');
   });
 
   test('bulk status changes preserve actual results', async ({ page }) => {
@@ -353,15 +365,19 @@ test.describe('Test execution', () => {
     await page.getByLabel('Notes / Comments').fill('Detailed failing run.');
     await page.getByRole('button', { name: 'Save Execution' }).click();
 
-    await page.getByLabel('Filter by Status').selectOption('Passed');
+    await page
+      .getByLabel('Filter by Status', { exact: true })
+      .selectOption('Passed');
     const history = page.getByRole('table', { name: 'Execution History' });
-    await expect(page.getByText('1 matching execution')).toBeVisible();
+    await expect(page.getByText('1 result', { exact: true })).toBeVisible();
     await expect(history.getByText('Quick passing run.')).toBeVisible();
     await expect(history.getByText('Detailed failing run.')).toHaveCount(0);
 
     await page.getByRole('button', { name: 'Clear Filters' }).click();
-    await expect(page.getByText('2 matching executions')).toBeVisible();
-    await expect(page.getByLabel('Filter by Status')).toHaveValue('all');
+    await expect(page.getByText('2 results', { exact: true })).toBeVisible();
+    await expect(
+      page.getByLabel('Filter by Status', { exact: true }),
+    ).toHaveValue('all');
   });
 
   test('filters execution history by execution mode', async ({ page }) => {
@@ -374,7 +390,7 @@ test.describe('Test execution', () => {
       .getByLabel('Filter by Execution Mode')
       .selectOption('detailed');
     const history = page.getByRole('table', { name: 'Execution History' });
-    await expect(page.getByText('1 matching execution')).toBeVisible();
+    await expect(page.getByText('1 result', { exact: true })).toBeVisible();
     await expect(history.getByText('Detailed mode record.')).toBeVisible();
     await expect(history.getByText('Quick mode record.')).toHaveCount(0);
   });
@@ -391,10 +407,32 @@ test.describe('Test execution', () => {
     );
 
     await page
-      .getByLabel('Sort by Execution Date')
-      .selectOption('oldest');
+      .getByRole('button', { name: /Sort by Execution Date/ })
+      .click();
     await expect(history.getByRole('row').nth(1)).toContainText(
       'First execution.',
+    );
+  });
+
+  test('sorts execution history by overall status', async ({ page }) => {
+    await prepareExecution(page);
+    await saveQuickRun(page, 'Failed', 'Failed status record.');
+    await page.waitForTimeout(10);
+    await saveQuickRun(page, 'Passed', 'Passed status record.');
+    const history = page.getByRole('table', { name: 'Execution History' });
+
+    await page
+      .getByRole('button', { name: /Sort by Overall Status/ })
+      .click();
+    await expect(history.getByRole('row').nth(1)).toContainText(
+      'Failed status record.',
+    );
+
+    await page
+      .getByRole('button', { name: /Sort by Overall Status/ })
+      .click();
+    await expect(history.getByRole('row').nth(1)).toContainText(
+      'Passed status record.',
     );
   });
 

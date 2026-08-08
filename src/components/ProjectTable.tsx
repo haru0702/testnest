@@ -1,7 +1,18 @@
 import type { Project, ProjectStatus } from '../projects/project';
+import type { SortDirection } from '../table/tableUtils';
+import { SortableTableHeader, TableHeader } from './TableControls';
+
+export type ProjectSortKey =
+  | 'name'
+  | 'status'
+  | 'createdDate'
+  | 'updatedDate';
 
 type ProjectTableProps = {
   projects: Project[];
+  sortKey: ProjectSortKey;
+  sortDirection: SortDirection;
+  onSort: (sortKey: ProjectSortKey) => void;
   onEdit: (project: Project) => void;
   onRequestDelete: (project: Project) => void;
 };
@@ -23,6 +34,9 @@ function formatDate(value: string) {
 
 export function ProjectTable({
   projects,
+  sortKey,
+  sortDirection,
+  onSort,
   onEdit,
   onRequestDelete,
 }: ProjectTableProps) {
@@ -31,23 +45,37 @@ export function ProjectTable({
       <table className="min-w-full divide-y divide-slate-200" aria-label="Projects">
         <thead className="bg-slate-50">
           <tr>
-            {[
-              'Project ID',
-              'Project Name',
-              'Description',
-              'Status',
-              'Created Date',
-              'Updated Date',
-              'Actions',
-            ].map((heading) => (
-              <th
-                key={heading}
-                scope="col"
-                className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase text-slate-600"
-              >
-                {heading}
-              </th>
-            ))}
+            <TableHeader label="Project ID" />
+            <SortableTableHeader
+              label="Project Name"
+              sortKey="name"
+              activeSortKey={sortKey}
+              direction={sortDirection}
+              onSort={onSort}
+            />
+            <TableHeader label="Description" />
+            <SortableTableHeader
+              label="Status"
+              sortKey="status"
+              activeSortKey={sortKey}
+              direction={sortDirection}
+              onSort={onSort}
+            />
+            <SortableTableHeader
+              label="Created Date"
+              sortKey="createdDate"
+              activeSortKey={sortKey}
+              direction={sortDirection}
+              onSort={onSort}
+            />
+            <SortableTableHeader
+              label="Updated Date"
+              sortKey="updatedDate"
+              activeSortKey={sortKey}
+              direction={sortDirection}
+              onSort={onSort}
+            />
+            <TableHeader label="Actions" />
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-200 bg-white">

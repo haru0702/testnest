@@ -1,7 +1,14 @@
 import type { TestScenario } from '../testCases/testCase';
+import type { SortDirection } from '../table/tableUtils';
+import { SortableTableHeader, TableHeader } from './TableControls';
+
+export type ScenarioSortKey = 'name' | 'createdDate' | 'updatedDate';
 
 type ScenarioTableProps = {
   scenarios: TestScenario[];
+  sortKey: ScenarioSortKey;
+  sortDirection: SortDirection;
+  onSort: (sortKey: ScenarioSortKey) => void;
   onOpen: (scenario: TestScenario) => void;
   onEdit: (scenario: TestScenario) => void;
   onRequestDelete: (scenario: TestScenario) => void;
@@ -18,6 +25,9 @@ function formatDate(value: string) {
 
 export function ScenarioTable({
   scenarios,
+  sortKey,
+  sortDirection,
+  onSort,
   onOpen,
   onEdit,
   onRequestDelete,
@@ -30,21 +40,29 @@ export function ScenarioTable({
       >
         <thead className="bg-slate-50">
           <tr>
-            {[
-              'Scenario Name',
-              'Description',
-              'Created Date',
-              'Updated Date',
-              'Actions',
-            ].map((heading) => (
-              <th
-                key={heading}
-                scope="col"
-                className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase text-slate-600"
-              >
-                {heading}
-              </th>
-            ))}
+            <SortableTableHeader
+              label="Scenario Name"
+              sortKey="name"
+              activeSortKey={sortKey}
+              direction={sortDirection}
+              onSort={onSort}
+            />
+            <TableHeader label="Description" />
+            <SortableTableHeader
+              label="Created Date"
+              sortKey="createdDate"
+              activeSortKey={sortKey}
+              direction={sortDirection}
+              onSort={onSort}
+            />
+            <SortableTableHeader
+              label="Updated Date"
+              sortKey="updatedDate"
+              activeSortKey={sortKey}
+              direction={sortDirection}
+              onSort={onSort}
+            />
+            <TableHeader label="Actions" />
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-200 bg-white">

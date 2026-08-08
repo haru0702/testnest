@@ -1,16 +1,40 @@
 import { useState } from 'react';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { ProjectForm } from '../components/ProjectForm';
-import { ProjectTable } from '../components/ProjectTable';
+import {
+  ClearFiltersButton,
+  TableFilterSelect,
+  TableNoResults,
+  TablePagination,
+  TableResultCount,
+  TableSearchField,
+  TableToolbar,
+} from '../components/TableControls';
+import {
+  ProjectTable,
+  type ProjectSortKey,
+} from '../components/ProjectTable';
 import {
   getProjectNameError,
   normalizeProjectName,
+  PROJECT_STATUSES,
   type Project,
   type ProjectFormValues,
+  type ProjectStatus,
 } from '../projects/project';
 import { loadProjects, saveProjects } from '../projects/projectStorage';
 import { deleteProjectTestData } from '../testCases/testCaseStorage';
 import { deleteProjectExecutions } from '../executions/executionStorage';
+import {
+  compareDates,
+  compareText,
+  filterItems,
+  getNextSortDirection,
+  matchesSearch,
+  paginateItems,
+  sortItems,
+  type SortDirection,
+} from '../table/tableUtils';
 
 type FormMode = 'create' | 'edit' | null;
 
@@ -20,11 +44,51 @@ export function ProjectsPage() {
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-
-  const comparableSearch = searchQuery.trim().toLocaleLowerCase();
-  const filteredProjects = projects.filter((project) =>
-    project.name.toLocaleLowerCase().includes(comparableSearch),
+  const [statusFilter, setStatusFilter] = useState<'all' | ProjectStatus>(
+    'all',
   );
+  const [sortKey, setSortKey] = useState<ProjectSortKey>('updatedDate');
+  const [sortDirection, setSortDirection] =
+    useState<SortDirection>('descending');
+  const [page, setPage] = useState(1);
+
+  const filteredProjects = filterItems(projects, [
+    (project) => matchesSearch(searchQuery, [project.name]),
+    (project) => statusFilter === 'all' || project.status === statusFilter,
+  ]);
+  const sortedProjects = sortItems(
+    filteredProjects,
+    (first, second) => {
+      switch (sortKey) {
+        case 'name':
+          return compareText(first.name, second.name);
+        case 'status':
+          return compareText(first.status, second.status);
+        case 'createdDate':
+          return compareDates(first.createdDate, second.createdDate);
+        case 'updatedDate':
+          return compareDates(first.updatedDate, second.updatedDate);
+      }
+    },
+    sortDirection,
+  );
+  const paginatedProjects = paginateItems(sortedProjects, page);
+
+  function handleSort(nextSortKey: ProjectSortKey) {
+    setSortDirection(
+      getNextSortDirection(sortKey, nextSortKey, sortDirection),
+    );
+    setSortKey(nextSortKey);
+    setPage(1);
+  }
+
+  function clearFilters() {
+    setSearchQuery('');
+    setStatusFilter('all');
+    setSortKey('updatedDate');
+    setSortDirection('descending');
+    setPage(1);
+  }
 
   function closeForm() {
     setFormMode(null);
@@ -142,42 +206,58 @@ export function ProjectsPage() {
           </div>
         ) : (
           <>
-            <div className="mb-4 max-w-md">
-              <label
-                className="block text-sm font-medium text-slate-800"
-                htmlFor="project-search"
-              >
-                Search projects
-              </label>
-              <input
+            <TableToolbar>
+              <TableSearchField
                 id="project-search"
-                type="search"
+                label="Search projects"
                 placeholder="Search by project name"
-                className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-950 outline-none transition focus:border-teal-600 focus:ring-2 focus:ring-teal-100"
                 value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
+                onChange={(value) => {
+                  setSearchQuery(value);
+                  setPage(1);
+                }}
               />
+              <TableFilterSelect
+                id="project-status-filter"
+                label="Filter by Status"
+                value={statusFilter}
+                options={[
+                  { value: 'all', label: 'All Statuses' },
+                  ...PROJECT_STATUSES.map((status) => ({
+                    value: status,
+                    label: status,
+                  })),
+                ]}
+                onChange={(value) => {
+                  setStatusFilter(value as 'all' | ProjectStatus);
+                  setPage(1);
+                }}
+              />
+              <ClearFiltersButton onClick={clearFilters} />
+            </TableToolbar>
+
+            <div className="my-3">
+              <TableResultCount count={filteredProjects.length} />
             </div>
 
             {filteredProjects.length > 0 ? (
-              <ProjectTable
-                projects={filteredProjects}
-                onEdit={openEditForm}
-                onRequestDelete={setDeleteTarget}
-              />
+              <>
+                <ProjectTable
+                  projects={paginatedProjects.items}
+                  sortKey={sortKey}
+                  sortDirection={sortDirection}
+                  onSort={handleSort}
+                  onEdit={openEditForm}
+                  onRequestDelete={setDeleteTarget}
+                />
+                <TablePagination
+                  page={paginatedProjects.page}
+                  totalPages={paginatedProjects.totalPages}
+                  onPageChange={setPage}
+                />
+              </>
             ) : (
-              <div className="rounded-lg border border-dashed border-slate-300 bg-white px-6 py-10 text-center">
-                <p className="font-semibold text-slate-950">
-                  No projects match your search.
-                </p>
-                <button
-                  type="button"
-                  className="mt-3 text-sm font-semibold text-teal-700 underline decoration-teal-300 underline-offset-4 hover:text-teal-900"
-                  onClick={() => setSearchQuery('')}
-                >
-                  Clear search
-                </button>
-              </div>
+              <TableNoResults itemName="projects" onClear={clearFilters} />
             )}
           </>
         )}

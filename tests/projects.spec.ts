@@ -21,6 +21,28 @@ async function createProject(
   await page.getByRole('button', { name: 'Save Project' }).click();
 }
 
+async function seedProjects(page: Page, count: number) {
+  const projects = Array.from({ length: count }, (_, index) => {
+    const number = String(index + 1).padStart(2, '0');
+    const date = new Date(Date.UTC(2026, 0, index + 1)).toISOString();
+
+    return {
+      id: `project-${number}`,
+      name: `Project ${number}`,
+      description: `Coverage for project ${number}.`,
+      status: 'Active',
+      createdDate: date,
+      updatedDate: date,
+    };
+  });
+
+  await page.evaluate((records) => {
+    localStorage.setItem('testnest.projects', JSON.stringify(records));
+  }, projects);
+  await page.reload();
+  await page.getByRole('button', { name: 'Projects' }).click();
+}
+
 test.describe('Project management', () => {
   test.beforeEach(async ({ page }) => {
     await openProjects(page);
@@ -100,7 +122,9 @@ test.describe('Project management', () => {
       page.getByRole('rowheader', { name: 'Mobile App', exact: true }),
     ).toHaveCount(0);
     await expect(page.getByText('Updated mobile coverage.')).toBeVisible();
-    await expect(page.getByText('On Hold')).toBeVisible();
+    await expect(
+      page.getByRole('cell', { name: 'On Hold' }),
+    ).toBeVisible();
   });
 
   test('cancels an edit without saving changes', async ({ page }) => {
@@ -151,7 +175,7 @@ test.describe('Project management', () => {
   test('searches projects by name', async ({ page }) => {
     await createProject(page, 'Customer Portal');
     await createProject(page, 'Mobile App');
-    await page.getByLabel('Search projects').fill('customer');
+    await page.getByLabel('Search projects').fill('  CUSTOMER  ');
 
     await expect(
       page.getByRole('rowheader', { name: 'Customer Portal' }),
@@ -159,5 +183,88 @@ test.describe('Project management', () => {
     await expect(
       page.getByRole('rowheader', { name: 'Mobile App' }),
     ).toHaveCount(0);
+  });
+
+  test('filters projects by status', async ({ page }) => {
+    await createProject(page, 'Customer Portal', 'Web coverage.', 'Active');
+    await createProject(page, 'Mobile App', 'Mobile coverage.', 'Completed');
+    await page
+      .getByLabel('Filter by Status', { exact: true })
+      .selectOption('Completed');
+
+    await expect(
+      page.getByRole('rowheader', { name: 'Mobile App' }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('rowheader', { name: 'Customer Portal' }),
+    ).toHaveCount(0);
+    await expect(page.getByText('1 result', { exact: true })).toBeVisible();
+  });
+
+  test('sorts projects by name in both directions', async ({ page }) => {
+    await createProject(page, 'Zulu Project');
+    await createProject(page, 'Alpha Project');
+    const table = page.getByRole('table', { name: 'Projects' });
+    const nameHeader = page.getByRole('columnheader', {
+      name: /Project Name/,
+    });
+
+    await page.getByRole('button', { name: /Sort by Project Name/ }).click();
+    await expect(nameHeader).toHaveAttribute('aria-sort', 'ascending');
+    await expect(table.getByRole('row').nth(1)).toContainText('Alpha Project');
+
+    await page.getByRole('button', { name: /Sort by Project Name/ }).click();
+    await expect(nameHeader).toHaveAttribute('aria-sort', 'descending');
+    await expect(table.getByRole('row').nth(1)).toContainText('Zulu Project');
+  });
+
+  test('combines project filters and clears them', async ({ page }) => {
+    await createProject(page, 'Customer Portal', 'Web coverage.', 'Active');
+    await createProject(
+      page,
+      'Customer API',
+      'Service coverage.',
+      'Completed',
+    );
+    await createProject(page, 'Mobile App', 'Mobile coverage.', 'Completed');
+    await page.getByLabel('Search projects').fill('customer');
+    await page
+      .getByLabel('Filter by Status', { exact: true })
+      .selectOption('Completed');
+
+    await expect(
+      page.getByRole('rowheader', { name: 'Customer API' }),
+    ).toBeVisible();
+    await expect(page.getByText('1 result', { exact: true })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Clear Filters' }).click();
+    await expect(page.getByLabel('Search projects')).toHaveValue('');
+    await expect(
+      page.getByLabel('Filter by Status', { exact: true }),
+    ).toHaveValue('all');
+    await expect(page.getByText('3 results', { exact: true })).toBeVisible();
+  });
+
+  test('paginates projects and resets to page 1 after searching', async ({
+    page,
+  }) => {
+    await seedProjects(page, 11);
+
+    await expect(page.getByText('Page 1 of 2')).toBeVisible();
+    await expect(
+      page.getByRole('rowheader', { name: 'Project 11' }),
+    ).toBeVisible();
+    await page.getByRole('button', { name: 'Next' }).click();
+    await expect(page.getByText('Page 2 of 2')).toBeVisible();
+    await expect(
+      page.getByRole('rowheader', { name: 'Project 01' }),
+    ).toBeVisible();
+
+    await page.getByLabel('Search projects').fill('Project 11');
+    await expect(page.getByText('1 result', { exact: true })).toBeVisible();
+    await expect(page.getByText('Page 2 of 2')).toHaveCount(0);
+    await expect(
+      page.getByRole('rowheader', { name: 'Project 11' }),
+    ).toBeVisible();
   });
 });

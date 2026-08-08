@@ -1,7 +1,17 @@
+import type { ExecutionStatus } from '../executions/execution';
 import type { TestCase } from '../testCases/testCase';
+import type { SortDirection } from '../table/tableUtils';
+import { StatusBadge } from './StatusBadge';
+import { SortableTableHeader, TableHeader } from './TableControls';
+
+export type TestCaseSortKey = 'name' | 'createdDate' | 'updatedDate';
 
 type TestCaseTableProps = {
   testCases: TestCase[];
+  latestStatuses: ReadonlyMap<string, ExecutionStatus>;
+  sortKey: TestCaseSortKey;
+  sortDirection: SortDirection;
+  onSort: (sortKey: TestCaseSortKey) => void;
   onEdit: (testCase: TestCase) => void;
   onRequestDelete: (testCase: TestCase) => void;
 };
@@ -17,6 +27,10 @@ function formatDate(value: string) {
 
 export function TestCaseTable({
   testCases,
+  latestStatuses,
+  sortKey,
+  sortDirection,
+  onSort,
   onEdit,
   onRequestDelete,
 }: TestCaseTableProps) {
@@ -28,23 +42,32 @@ export function TestCaseTable({
       >
         <thead className="bg-slate-50">
           <tr>
-            {[
-              'Test Case Name',
-              'Test Description',
-              'Precondition',
-              'Test Steps',
-              'Created Date',
-              'Updated Date',
-              'Actions',
-            ].map((heading) => (
-              <th
-                key={heading}
-                scope="col"
-                className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase text-slate-600"
-              >
-                {heading}
-              </th>
-            ))}
+            <SortableTableHeader
+              label="Test Case Name"
+              sortKey="name"
+              activeSortKey={sortKey}
+              direction={sortDirection}
+              onSort={onSort}
+            />
+            <TableHeader label="Test Description" />
+            <TableHeader label="Precondition" />
+            <TableHeader label="Latest Status" />
+            <TableHeader label="Test Steps" />
+            <SortableTableHeader
+              label="Created Date"
+              sortKey="createdDate"
+              activeSortKey={sortKey}
+              direction={sortDirection}
+              onSort={onSort}
+            />
+            <SortableTableHeader
+              label="Updated Date"
+              sortKey="updatedDate"
+              activeSortKey={sortKey}
+              direction={sortDirection}
+              onSort={onSort}
+            />
+            <TableHeader label="Actions" />
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-200 bg-white">
@@ -62,17 +85,14 @@ export function TestCaseTable({
               <td className="min-w-56 max-w-sm px-4 py-4 align-top text-sm leading-6 text-slate-600">
                 {testCase.precondition || 'No precondition'}
               </td>
-              <td className="min-w-80 max-w-xl px-4 py-4 align-top text-sm text-slate-700">
-                <ol className="list-decimal space-y-3 pl-5">
-                  {testCase.steps.map((step) => (
-                    <li key={step.id}>
-                      <p className="font-medium leading-6">{step.description}</p>
-                      <p className="mt-1 leading-6 text-slate-500">
-                        Expected: {step.expectedResult}
-                      </p>
-                    </li>
-                  ))}
-                </ol>
+              <td className="whitespace-nowrap px-4 py-4 align-top text-sm">
+                <StatusBadge
+                  status={latestStatuses.get(testCase.id) ?? 'No Run'}
+                />
+              </td>
+              <td className="whitespace-nowrap px-4 py-4 align-top text-sm text-slate-600">
+                {testCase.steps.length}{' '}
+                {testCase.steps.length === 1 ? 'step' : 'steps'}
               </td>
               <td className="whitespace-nowrap px-4 py-4 align-top text-sm text-slate-600">
                 {formatDate(testCase.createdDate)}
