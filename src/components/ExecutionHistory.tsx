@@ -1,5 +1,9 @@
 import { useState } from 'react';
 import {
+  buildDefectDraftFromExecution,
+  type DefectFormValues,
+} from '../defects/defect';
+import {
   EXECUTION_STATUSES,
   type ExecutionMode,
   type ExecutionStatus,
@@ -15,6 +19,7 @@ import {
   TABLE_PAGE_SIZE,
   type SortDirection,
 } from '../table/tableUtils';
+import type { TestCase } from '../testCases/testCase';
 import { StatusBadge } from './StatusBadge';
 import {
   ClearFiltersButton,
@@ -29,6 +34,9 @@ import {
 
 type ExecutionHistoryProps = {
   executions: TestExecution[];
+  testCase: TestCase;
+  initialSelectedExecutionId?: string;
+  onCreateDefect: (draft: DefectFormValues) => void;
 };
 
 const dateFormatter = new Intl.DateTimeFormat(undefined, {
@@ -46,9 +54,17 @@ function formatExecutionMode(mode: ExecutionMode) {
 
 type ExecutionSortKey = 'executionDate' | 'overallStatus';
 
-export function ExecutionHistory({ executions }: ExecutionHistoryProps) {
-  const [selectedExecution, setSelectedExecution] =
-    useState<TestExecution | null>(null);
+export function ExecutionHistory({
+  executions,
+  testCase,
+  initialSelectedExecutionId,
+  onCreateDefect,
+}: ExecutionHistoryProps) {
+  const [selectedExecution, setSelectedExecution] = useState<TestExecution | null>(
+    () =>
+      executions.find((execution) => execution.id === initialSelectedExecutionId) ??
+      null,
+  );
   const [modeFilter, setModeFilter] = useState<'all' | ExecutionMode>('all');
   const [statusFilter, setStatusFilter] = useState<
     'all' | ExecutionStatus
@@ -197,14 +213,26 @@ export function ExecutionHistory({ executions }: ExecutionHistoryProps) {
                         {execution.notes || 'No notes'}
                       </td>
                       <td className="whitespace-nowrap px-4 py-4 text-sm">
-                        <button
-                          type="button"
-                          aria-label={`View execution details ${(paginatedExecutions.page - 1) * TABLE_PAGE_SIZE + index + 1}`}
-                          className="rounded-md border border-slate-300 bg-white px-3 py-1.5 font-semibold text-slate-700 transition hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-700"
-                          onClick={() => setSelectedExecution(execution)}
-                        >
-                          View Details
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            aria-label={`View execution details ${(paginatedExecutions.page - 1) * TABLE_PAGE_SIZE + index + 1}`}
+                            className="rounded-md border border-slate-300 bg-white px-3 py-1.5 font-semibold text-slate-700 transition hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-700"
+                            onClick={() => setSelectedExecution(execution)}
+                          >
+                            View Details
+                          </button>
+                          {execution.overallStatus === 'Failed' || execution.overallStatus === 'Blocked' ? (
+                            <button
+                              type="button"
+                              aria-label={`Create defect from ${execution.overallStatus} execution ${(paginatedExecutions.page - 1) * TABLE_PAGE_SIZE + index + 1}`}
+                              className="rounded-md border border-rose-200 bg-white px-3 py-1.5 font-semibold text-rose-700 transition hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700"
+                              onClick={() => onCreateDefect(buildDefectDraftFromExecution(execution, testCase))}
+                            >
+                              Create Defect
+                            </button>
+                          ) : null}
+                        </div>
                       </td>
                     </tr>
                     ))}
@@ -247,6 +275,15 @@ export function ExecutionHistory({ executions }: ExecutionHistoryProps) {
             <span className="font-medium text-slate-800">Notes:</span>{' '}
             {selectedExecution.notes || 'No notes'}
           </p>
+          {selectedExecution.overallStatus === 'Failed' || selectedExecution.overallStatus === 'Blocked' ? (
+            <button
+              type="button"
+              className="mt-4 rounded-md border border-rose-200 bg-white px-3 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700"
+              onClick={() => onCreateDefect(buildDefectDraftFromExecution(selectedExecution, testCase))}
+            >
+              Create Defect from Execution
+            </button>
+          ) : null}
           {selectedExecution.executionMode === 'quick' ? (
             <p className="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-700">
               Step-level results were not recorded for this Quick Run.
@@ -290,6 +327,23 @@ export function ExecutionHistory({ executions }: ExecutionHistoryProps) {
                       </dd>
                     </div>
                   </dl>
+                  {result.status === 'Failed' || result.status === 'Blocked' ? (
+                    <button
+                      type="button"
+                      className="mt-3 rounded-md border border-rose-200 bg-white px-3 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700"
+                      onClick={() =>
+                        onCreateDefect(
+                          buildDefectDraftFromExecution(
+                            selectedExecution,
+                            testCase,
+                            result,
+                          ),
+                        )
+                      }
+                    >
+                      Create Defect from Step {result.stepNumber}
+                    </button>
+                  ) : null}
                 </li>
               ))}
             </ol>

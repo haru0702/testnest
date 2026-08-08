@@ -1,4 +1,9 @@
-export type NavItemId = 'dashboard' | 'projects' | 'testCases' | 'testExecution';
+export type NavItemId =
+  | 'dashboard'
+  | 'projects'
+  | 'testCases'
+  | 'testExecution'
+  | 'defects';
 
 export type NavItem = {
   id: NavItemId;
@@ -10,4 +15,5 @@ export const NAV_ITEMS: NavItem[] = [
   { id: 'projects', label: 'Projects' },
   { id: 'testCases', label: 'Test Cases' },
   { id: 'testExecution', label: 'Test Execution' },
+  { id: 'defects', label: 'Defects' },
 ];

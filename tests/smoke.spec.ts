@@ -31,6 +31,11 @@ test.describe('TestNest smoke tests', () => {
       page.getByRole('heading', { name: 'Test Execution' }),
     ).toBeVisible();
 
+    await page.getByRole('button', { name: 'Defects' }).click();
+    await expect(
+      page.getByRole('heading', { level: 2, name: 'Defects' }),
+    ).toBeVisible();
+
     await page.getByRole('button', { name: 'Dashboard' }).click();
     await expect(
       page.getByRole('heading', { level: 2, name: 'Dashboard' }),
