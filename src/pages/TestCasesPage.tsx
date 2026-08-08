@@ -2,12 +2,33 @@ import { useState } from 'react';
 import {
   deleteScenarioExecutions,
   deleteTestCaseExecutions,
+  loadExecutions,
 } from '../executions/executionStorage';
+import {
+  EXECUTION_STATUSES,
+  getLatestExecutionsByTestCase,
+  type ExecutionStatus,
+} from '../executions/execution';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { ScenarioForm } from '../components/ScenarioForm';
-import { ScenarioTable } from '../components/ScenarioTable';
+import {
+  ScenarioTable,
+  type ScenarioSortKey,
+} from '../components/ScenarioTable';
+import {
+  ClearFiltersButton,
+  TableFilterSelect,
+  TableNoResults,
+  TablePagination,
+  TableResultCount,
+  TableSearchField,
+  TableToolbar,
+} from '../components/TableControls';
 import { TestCaseForm } from '../components/TestCaseForm';
-import { TestCaseTable } from '../components/TestCaseTable';
+import {
+  TestCaseTable,
+  type TestCaseSortKey,
+} from '../components/TestCaseTable';
 import { loadProjects } from '../projects/projectStorage';
 import {
   getScenarioNameError,
@@ -28,6 +49,16 @@ import {
   saveScenarios,
   saveTestCases,
 } from '../testCases/testCaseStorage';
+import {
+  compareDates,
+  compareText,
+  filterItems,
+  getNextSortDirection,
+  matchesSearch,
+  paginateItems,
+  sortItems,
+  type SortDirection,
+} from '../table/tableUtils';
 
 type FormMode = 'create' | 'edit' | null;
 
@@ -39,6 +70,7 @@ export function TestCasesPage() {
   const [testCases, setTestCases] = useState<TestCase[]>(() =>
     loadTestCases(),
   );
+  const [executions] = useState(() => loadExecutions());
   const [selectedProjectId, setSelectedProjectId] = useState('');
   const [selectedScenarioId, setSelectedScenarioId] = useState('');
   const [scenarioFormMode, setScenarioFormMode] = useState<FormMode>(null);
@@ -47,11 +79,24 @@ export function TestCasesPage() {
   const [scenarioDeleteTarget, setScenarioDeleteTarget] =
     useState<TestScenario | null>(null);
   const [scenarioSearch, setScenarioSearch] = useState('');
+  const [scenarioSortKey, setScenarioSortKey] =
+    useState<ScenarioSortKey>('updatedDate');
+  const [scenarioSortDirection, setScenarioSortDirection] =
+    useState<SortDirection>('descending');
+  const [scenarioPage, setScenarioPage] = useState(1);
   const [testCaseFormMode, setTestCaseFormMode] = useState<FormMode>(null);
   const [editingTestCase, setEditingTestCase] = useState<TestCase | null>(null);
   const [testCaseDeleteTarget, setTestCaseDeleteTarget] =
     useState<TestCase | null>(null);
   const [testCaseSearch, setTestCaseSearch] = useState('');
+  const [testCaseStatusFilter, setTestCaseStatusFilter] = useState<
+    'all' | ExecutionStatus
+  >('all');
+  const [testCaseSortKey, setTestCaseSortKey] =
+    useState<TestCaseSortKey>('updatedDate');
+  const [testCaseSortDirection, setTestCaseSortDirection] =
+    useState<SortDirection>('descending');
+  const [testCasePage, setTestCasePage] = useState(1);
 
   const selectedProject = projects.find(
     (project) => project.id === selectedProjectId,
@@ -65,14 +110,97 @@ export function TestCasesPage() {
   const scenarioTestCases = testCases.filter(
     (testCase) => testCase.scenarioId === selectedScenarioId,
   );
-  const comparableScenarioSearch = scenarioSearch.trim().toLocaleLowerCase();
-  const comparableTestCaseSearch = testCaseSearch.trim().toLocaleLowerCase();
-  const filteredScenarios = projectScenarios.filter((scenario) =>
-    scenario.name.toLocaleLowerCase().includes(comparableScenarioSearch),
+  const latestExecutions = getLatestExecutionsByTestCase(executions);
+  const latestStatuses = new Map<string, ExecutionStatus>(
+    [...latestExecutions].map(([testCaseId, execution]) => [
+      testCaseId,
+      execution.overallStatus,
+    ]),
   );
-  const filteredTestCases = scenarioTestCases.filter((testCase) =>
-    testCase.name.toLocaleLowerCase().includes(comparableTestCaseSearch),
+  const filteredScenarios = filterItems(projectScenarios, [
+    (scenario) =>
+      matchesSearch(scenarioSearch, [scenario.name, scenario.description]),
+  ]);
+  const sortedScenarios = sortItems(
+    filteredScenarios,
+    (first, second) => {
+      switch (scenarioSortKey) {
+        case 'name':
+          return compareText(first.name, second.name);
+        case 'createdDate':
+          return compareDates(first.createdDate, second.createdDate);
+        case 'updatedDate':
+          return compareDates(first.updatedDate, second.updatedDate);
+      }
+    },
+    scenarioSortDirection,
   );
+  const paginatedScenarios = paginateItems(sortedScenarios, scenarioPage);
+  const filteredTestCases = filterItems(scenarioTestCases, [
+    (testCase) =>
+      matchesSearch(testCaseSearch, [
+        testCase.name,
+        testCase.description,
+        testCase.precondition,
+      ]),
+    (testCase) =>
+      testCaseStatusFilter === 'all' ||
+      (latestStatuses.get(testCase.id) ?? 'No Run') === testCaseStatusFilter,
+  ]);
+  const sortedTestCases = sortItems(
+    filteredTestCases,
+    (first, second) => {
+      switch (testCaseSortKey) {
+        case 'name':
+          return compareText(first.name, second.name);
+        case 'createdDate':
+          return compareDates(first.createdDate, second.createdDate);
+        case 'updatedDate':
+          return compareDates(first.updatedDate, second.updatedDate);
+      }
+    },
+    testCaseSortDirection,
+  );
+  const paginatedTestCases = paginateItems(sortedTestCases, testCasePage);
+
+  function handleScenarioSort(nextSortKey: ScenarioSortKey) {
+    setScenarioSortDirection(
+      getNextSortDirection(
+        scenarioSortKey,
+        nextSortKey,
+        scenarioSortDirection,
+      ),
+    );
+    setScenarioSortKey(nextSortKey);
+    setScenarioPage(1);
+  }
+
+  function handleTestCaseSort(nextSortKey: TestCaseSortKey) {
+    setTestCaseSortDirection(
+      getNextSortDirection(
+        testCaseSortKey,
+        nextSortKey,
+        testCaseSortDirection,
+      ),
+    );
+    setTestCaseSortKey(nextSortKey);
+    setTestCasePage(1);
+  }
+
+  function clearScenarioFilters() {
+    setScenarioSearch('');
+    setScenarioSortKey('updatedDate');
+    setScenarioSortDirection('descending');
+    setScenarioPage(1);
+  }
+
+  function clearTestCaseFilters() {
+    setTestCaseSearch('');
+    setTestCaseStatusFilter('all');
+    setTestCaseSortKey('updatedDate');
+    setTestCaseSortDirection('descending');
+    setTestCasePage(1);
+  }
 
   function closeScenarioForm() {
     setScenarioFormMode(null);
@@ -87,21 +215,21 @@ export function TestCasesPage() {
   function handleProjectChange(projectId: string) {
     setSelectedProjectId(projectId);
     setSelectedScenarioId('');
-    setScenarioSearch('');
-    setTestCaseSearch('');
+    clearScenarioFilters();
+    clearTestCaseFilters();
     closeScenarioForm();
     closeTestCaseForm();
   }
 
   function openScenario(scenario: TestScenario) {
     setSelectedScenarioId(scenario.id);
-    setTestCaseSearch('');
+    clearTestCaseFilters();
     closeScenarioForm();
   }
 
   function returnToScenarios() {
     setSelectedScenarioId('');
-    setTestCaseSearch('');
+    clearTestCaseFilters();
     closeTestCaseForm();
   }
 
@@ -238,26 +366,60 @@ export function TestCasesPage() {
         scenario.
       </p>
 
-      <div className="mt-5 max-w-md">
-        <label
-          className="block text-sm font-medium text-slate-800"
-          htmlFor="test-case-project"
-        >
-          Project
-        </label>
-        <select
-          id="test-case-project"
-          className="testnest-select mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-950 outline-none transition focus:border-teal-600 focus:ring-2 focus:ring-teal-100"
-          value={selectedProjectId}
-          onChange={(event) => handleProjectChange(event.target.value)}
-        >
-          <option value="">Select a project</option>
-          {projects.map((project) => (
-            <option key={project.id} value={project.id}>
-              {project.name}
-            </option>
-          ))}
-        </select>
+      <div className="mt-5 grid max-w-3xl gap-4 sm:grid-cols-2">
+        <div>
+          <label
+            className="block text-sm font-medium text-slate-800"
+            htmlFor="test-case-project"
+          >
+            Project
+          </label>
+          <select
+            id="test-case-project"
+            className="testnest-select mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-950 outline-none transition focus:border-teal-600 focus:ring-2 focus:ring-teal-100"
+            value={selectedProjectId}
+            onChange={(event) => handleProjectChange(event.target.value)}
+          >
+            <option value="">Select a project</option>
+            {projects.map((project) => (
+              <option key={project.id} value={project.id}>
+                {project.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label
+            className="block text-sm font-medium text-slate-800"
+            htmlFor="test-case-scenario"
+          >
+            Test Scenario
+          </label>
+          <select
+            id="test-case-scenario"
+            className="testnest-select mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-950 outline-none transition focus:border-teal-600 focus:ring-2 focus:ring-teal-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+            value={selectedScenarioId}
+            disabled={!selectedProjectId}
+            onChange={(event) => {
+              const scenario = scenarios.find(
+                (candidate) => candidate.id === event.target.value,
+              );
+
+              if (scenario) {
+                openScenario(scenario);
+              } else {
+                returnToScenarios();
+              }
+            }}
+          >
+            <option value="">All scenarios</option>
+            {projectScenarios.map((scenario) => (
+              <option key={scenario.id} value={scenario.id}>
+                {scenario.name}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <nav aria-label="Test case context" className="mt-6">
@@ -357,26 +519,64 @@ export function TestCasesPage() {
                 />
               ) : (
                 <>
-                  <SearchField
-                    id="test-case-search"
-                    label="Search test cases"
-                    placeholder="Search by test case name"
-                    value={testCaseSearch}
-                    onChange={setTestCaseSearch}
-                  />
-                  {filteredTestCases.length > 0 ? (
-                    <TestCaseTable
-                      testCases={filteredTestCases}
-                      onEdit={(testCase) => {
-                        setEditingTestCase(testCase);
-                        setTestCaseFormMode('edit');
+                  <TableToolbar>
+                    <TableSearchField
+                      id="test-case-search"
+                      label="Search test cases"
+                      placeholder="Search name, description, or precondition"
+                      value={testCaseSearch}
+                      onChange={(value) => {
+                        setTestCaseSearch(value);
+                        setTestCasePage(1);
                       }}
-                      onRequestDelete={setTestCaseDeleteTarget}
                     />
+                    <TableFilterSelect
+                      id="test-case-status-filter"
+                      label="Filter by Latest Status"
+                      value={testCaseStatusFilter}
+                      options={[
+                        { value: 'all', label: 'All Statuses' },
+                        ...EXECUTION_STATUSES.map((status) => ({
+                          value: status,
+                          label: status,
+                        })),
+                      ]}
+                      onChange={(value) => {
+                        setTestCaseStatusFilter(
+                          value as 'all' | ExecutionStatus,
+                        );
+                        setTestCasePage(1);
+                      }}
+                    />
+                    <ClearFiltersButton onClick={clearTestCaseFilters} />
+                  </TableToolbar>
+                  <div className="my-3">
+                    <TableResultCount count={filteredTestCases.length} />
+                  </div>
+                  {filteredTestCases.length > 0 ? (
+                    <>
+                      <TestCaseTable
+                        testCases={paginatedTestCases.items}
+                        latestStatuses={latestStatuses}
+                        sortKey={testCaseSortKey}
+                        sortDirection={testCaseSortDirection}
+                        onSort={handleTestCaseSort}
+                        onEdit={(testCase) => {
+                          setEditingTestCase(testCase);
+                          setTestCaseFormMode('edit');
+                        }}
+                        onRequestDelete={setTestCaseDeleteTarget}
+                      />
+                      <TablePagination
+                        page={paginatedTestCases.page}
+                        totalPages={paginatedTestCases.totalPages}
+                        onPageChange={setTestCasePage}
+                      />
+                    </>
                   ) : (
-                    <SearchEmptyState
+                    <TableNoResults
                       itemName="test cases"
-                      onClear={() => setTestCaseSearch('')}
+                      onClear={clearTestCaseFilters}
                     />
                   )}
                 </>
@@ -428,27 +628,46 @@ export function TestCasesPage() {
                 />
               ) : (
                 <>
-                  <SearchField
-                    id="scenario-search"
-                    label="Search scenarios"
-                    placeholder="Search by scenario name"
-                    value={scenarioSearch}
-                    onChange={setScenarioSearch}
-                  />
-                  {filteredScenarios.length > 0 ? (
-                    <ScenarioTable
-                      scenarios={filteredScenarios}
-                      onOpen={openScenario}
-                      onEdit={(scenario) => {
-                        setEditingScenario(scenario);
-                        setScenarioFormMode('edit');
+                  <TableToolbar>
+                    <TableSearchField
+                      id="scenario-search"
+                      label="Search scenarios"
+                      placeholder="Search name or description"
+                      value={scenarioSearch}
+                      onChange={(value) => {
+                        setScenarioSearch(value);
+                        setScenarioPage(1);
                       }}
-                      onRequestDelete={setScenarioDeleteTarget}
                     />
+                    <ClearFiltersButton onClick={clearScenarioFilters} />
+                  </TableToolbar>
+                  <div className="my-3">
+                    <TableResultCount count={filteredScenarios.length} />
+                  </div>
+                  {filteredScenarios.length > 0 ? (
+                    <>
+                      <ScenarioTable
+                        scenarios={paginatedScenarios.items}
+                        sortKey={scenarioSortKey}
+                        sortDirection={scenarioSortDirection}
+                        onSort={handleScenarioSort}
+                        onOpen={openScenario}
+                        onEdit={(scenario) => {
+                          setEditingScenario(scenario);
+                          setScenarioFormMode('edit');
+                        }}
+                        onRequestDelete={setScenarioDeleteTarget}
+                      />
+                      <TablePagination
+                        page={paginatedScenarios.page}
+                        totalPages={paginatedScenarios.totalPages}
+                        onPageChange={setScenarioPage}
+                      />
+                    </>
                   ) : (
-                    <SearchEmptyState
+                    <TableNoResults
                       itemName="scenarios"
-                      onClear={() => setScenarioSearch('')}
+                      onClear={clearScenarioFilters}
                     />
                   )}
                 </>
@@ -509,60 +728,6 @@ function EmptyState({
           {actionLabel}
         </button>
       ) : null}
-    </div>
-  );
-}
-
-type SearchFieldProps = {
-  id: string;
-  label: string;
-  placeholder: string;
-  value: string;
-  onChange: (value: string) => void;
-};
-
-function SearchField({
-  id,
-  label,
-  placeholder,
-  value,
-  onChange,
-}: SearchFieldProps) {
-  return (
-    <div className="mb-4 max-w-md">
-      <label className="block text-sm font-medium text-slate-800" htmlFor={id}>
-        {label}
-      </label>
-      <input
-        id={id}
-        type="search"
-        placeholder={placeholder}
-        className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-950 outline-none transition focus:border-teal-600 focus:ring-2 focus:ring-teal-100"
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-      />
-    </div>
-  );
-}
-
-type SearchEmptyStateProps = {
-  itemName: string;
-  onClear: () => void;
-};
-
-function SearchEmptyState({ itemName, onClear }: SearchEmptyStateProps) {
-  return (
-    <div className="rounded-lg border border-dashed border-slate-300 bg-white px-6 py-10 text-center">
-      <p className="font-semibold text-slate-950">
-        No {itemName} match your search.
-      </p>
-      <button
-        type="button"
-        className="mt-3 text-sm font-semibold text-teal-700 underline decoration-teal-300 underline-offset-4 hover:text-teal-900"
-        onClick={onClear}
-      >
-        Clear search
-      </button>
     </div>
   );
 }

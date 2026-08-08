@@ -5,7 +5,27 @@ import {
   type ExecutionStatus,
   type TestExecution,
 } from '../executions/execution';
+import {
+  compareDates,
+  compareText,
+  filterItems,
+  getNextSortDirection,
+  paginateItems,
+  sortItems,
+  TABLE_PAGE_SIZE,
+  type SortDirection,
+} from '../table/tableUtils';
 import { StatusBadge } from './StatusBadge';
+import {
+  ClearFiltersButton,
+  SortableTableHeader,
+  TableFilterSelect,
+  TableHeader,
+  TableNoResults,
+  TablePagination,
+  TableResultCount,
+  TableToolbar,
+} from './TableControls';
 
 type ExecutionHistoryProps = {
   executions: TestExecution[];
@@ -24,6 +44,8 @@ function formatExecutionMode(mode: ExecutionMode) {
   return mode === 'quick' ? 'Quick Run' : 'Detailed Run';
 }
 
+type ExecutionSortKey = 'executionDate' | 'overallStatus';
+
 export function ExecutionHistory({ executions }: ExecutionHistoryProps) {
   const [selectedExecution, setSelectedExecution] =
     useState<TestExecution | null>(null);
@@ -31,28 +53,42 @@ export function ExecutionHistory({ executions }: ExecutionHistoryProps) {
   const [statusFilter, setStatusFilter] = useState<
     'all' | ExecutionStatus
   >('all');
-  const [sortDirection, setSortDirection] = useState<'newest' | 'oldest'>(
-    'newest',
+  const [sortKey, setSortKey] =
+    useState<ExecutionSortKey>('executionDate');
+  const [sortDirection, setSortDirection] =
+    useState<SortDirection>('descending');
+  const [page, setPage] = useState(1);
+
+  const filteredExecutions = filterItems(executions, [
+    (execution) =>
+      modeFilter === 'all' || execution.executionMode === modeFilter,
+    (execution) =>
+      statusFilter === 'all' || execution.overallStatus === statusFilter,
+  ]);
+  const sortedExecutions = sortItems(
+    filteredExecutions,
+    (first, second) =>
+      sortKey === 'executionDate'
+        ? compareDates(first.executionDate, second.executionDate)
+        : compareText(first.overallStatus, second.overallStatus),
+    sortDirection,
   );
+  const paginatedExecutions = paginateItems(sortedExecutions, page);
 
-  const filteredExecutions = executions
-    .filter(
-      (execution) =>
-        (modeFilter === 'all' || execution.executionMode === modeFilter) &&
-        (statusFilter === 'all' || execution.overallStatus === statusFilter),
-    )
-    .sort((first, second) => {
-      const difference =
-        new Date(second.executionDate).getTime() -
-        new Date(first.executionDate).getTime();
-
-      return sortDirection === 'newest' ? difference : -difference;
-    });
+  function handleSort(nextSortKey: ExecutionSortKey) {
+    setSortDirection(
+      getNextSortDirection(sortKey, nextSortKey, sortDirection),
+    );
+    setSortKey(nextSortKey);
+    setPage(1);
+  }
 
   function clearFilters() {
     setModeFilter('all');
     setStatusFilter('all');
-    setSortDirection('newest');
+    setSortKey('executionDate');
+    setSortDirection('descending');
+    setPage(1);
   }
 
   return (
@@ -72,100 +108,78 @@ export function ExecutionHistory({ executions }: ExecutionHistoryProps) {
         </div>
       ) : (
         <>
-          <div className="mt-4 grid gap-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_auto] xl:items-end">
-            <label className="grid gap-1.5 text-sm font-medium text-slate-700">
-              Filter by Execution Mode
-              <select
-                className="testnest-select"
+          <div className="mt-4">
+            <TableToolbar>
+              <TableFilterSelect
+                id="execution-mode-filter"
+                label="Filter by Execution Mode"
                 value={modeFilter}
-                onChange={(event) =>
-                  setModeFilter(event.target.value as 'all' | ExecutionMode)
-                }
-              >
-                <option value="all">All Modes</option>
-                <option value="quick">Quick Run</option>
-                <option value="detailed">Detailed Run</option>
-              </select>
-            </label>
-            <label className="grid gap-1.5 text-sm font-medium text-slate-700">
-              Filter by Status
-              <select
-                className="testnest-select"
+                options={[
+                  { value: 'all', label: 'All Modes' },
+                  { value: 'quick', label: 'Quick Run' },
+                  { value: 'detailed', label: 'Detailed Run' },
+                ]}
+                onChange={(value) => {
+                  setModeFilter(value as 'all' | ExecutionMode);
+                  setPage(1);
+                }}
+              />
+              <TableFilterSelect
+                id="execution-status-filter"
+                label="Filter by Status"
                 value={statusFilter}
-                onChange={(event) =>
-                  setStatusFilter(event.target.value as 'all' | ExecutionStatus)
-                }
-              >
-                <option value="all">All Statuses</option>
-                {EXECUTION_STATUSES.map((status) => (
-                  <option key={status} value={status}>
-                    {status}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="grid gap-1.5 text-sm font-medium text-slate-700">
-              Sort by Execution Date
-              <select
-                className="testnest-select"
-                value={sortDirection}
-                onChange={(event) =>
-                  setSortDirection(event.target.value as 'newest' | 'oldest')
-                }
-              >
-                <option value="newest">Newest First</option>
-                <option value="oldest">Oldest First</option>
-              </select>
-            </label>
-            <button
-              type="button"
-              className="rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-700"
-              onClick={clearFilters}
-            >
-              Clear Filters
-            </button>
+                options={[
+                  { value: 'all', label: 'All Statuses' },
+                  ...EXECUTION_STATUSES.map((status) => ({
+                    value: status,
+                    label: status,
+                  })),
+                ]}
+                onChange={(value) => {
+                  setStatusFilter(value as 'all' | ExecutionStatus);
+                  setPage(1);
+                }}
+              />
+              <ClearFiltersButton onClick={clearFilters} />
+            </TableToolbar>
           </div>
 
-          <p className="mt-3 text-sm text-slate-600" aria-live="polite">
-            {filteredExecutions.length}{' '}
-            {filteredExecutions.length === 1
-              ? 'matching execution'
-              : 'matching executions'}
-          </p>
+          <div className="my-3">
+            <TableResultCount count={filteredExecutions.length} />
+          </div>
 
           {filteredExecutions.length === 0 ? (
-            <div className="mt-3 rounded-lg border border-dashed border-slate-300 bg-white px-6 py-10 text-center">
-              <p className="font-semibold text-slate-950">
-                No executions match these filters
-              </p>
-            </div>
+            <TableNoResults itemName="executions" onClear={clearFilters} />
           ) : (
-            <div className="mt-3 overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
-              <table
-                className="min-w-full divide-y divide-slate-200"
-                aria-label="Execution History"
-              >
-                <thead className="bg-slate-50">
-                  <tr>
-                    {[
-                      'Execution Date',
-                      'Execution Mode',
-                      'Overall Status',
-                      'Notes',
-                      'Actions',
-                    ].map((heading) => (
-                      <th
-                        key={heading}
-                        scope="col"
-                        className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase text-slate-600"
-                      >
-                        {heading}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200 bg-white">
-                  {filteredExecutions.map((execution, index) => (
+            <>
+              <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+                <table
+                  className="min-w-full divide-y divide-slate-200"
+                  aria-label="Execution History"
+                >
+                  <thead className="bg-slate-50">
+                    <tr>
+                      <SortableTableHeader
+                        label="Execution Date"
+                        sortKey="executionDate"
+                        activeSortKey={sortKey}
+                        direction={sortDirection}
+                        onSort={handleSort}
+                      />
+                      <TableHeader label="Execution Mode" />
+                      <SortableTableHeader
+                        label="Overall Status"
+                        sortKey="overallStatus"
+                        activeSortKey={sortKey}
+                        direction={sortDirection}
+                        onSort={handleSort}
+                      />
+                      <TableHeader label="Notes" />
+                      <TableHeader label="Actions" />
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200 bg-white">
+                    {paginatedExecutions.items.map((execution, index) => (
                     <tr key={execution.id}>
                       <th
                         scope="row"
@@ -185,7 +199,7 @@ export function ExecutionHistory({ executions }: ExecutionHistoryProps) {
                       <td className="whitespace-nowrap px-4 py-4 text-sm">
                         <button
                           type="button"
-                          aria-label={`View execution details ${index + 1}`}
+                          aria-label={`View execution details ${(paginatedExecutions.page - 1) * TABLE_PAGE_SIZE + index + 1}`}
                           className="rounded-md border border-slate-300 bg-white px-3 py-1.5 font-semibold text-slate-700 transition hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-700"
                           onClick={() => setSelectedExecution(execution)}
                         >
@@ -193,10 +207,16 @@ export function ExecutionHistory({ executions }: ExecutionHistoryProps) {
                         </button>
                       </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <TablePagination
+                page={paginatedExecutions.page}
+                totalPages={paginatedExecutions.totalPages}
+                onPageChange={setPage}
+              />
+            </>
           )}
         </>
       )}
