@@ -1,15 +1,25 @@
 import { StatCard } from '../components/StatCard';
-
-const dashboardStats = [
-  { label: 'Total Projects', value: 0, tone: 'neutral' },
-  { label: 'Total Test Cases', value: 0, tone: 'neutral' },
-  { label: 'Passed', value: 0, tone: 'success' },
-  { label: 'Failed', value: 0, tone: 'danger' },
-  { label: 'Blocked', value: 0, tone: 'warning' },
-  { label: 'No Run', value: 0, tone: 'muted' },
-] as const;
+import { getLatestExecutionStatusCounts } from '../executions/execution';
+import { loadExecutions } from '../executions/executionStorage';
+import { loadProjects } from '../projects/projectStorage';
+import { loadTestCases } from '../testCases/testCaseStorage';
 
 export function DashboardPage() {
+  const projects = loadProjects();
+  const testCases = loadTestCases();
+  const executionCounts = getLatestExecutionStatusCounts(
+    testCases,
+    loadExecutions(),
+  );
+  const dashboardStats = [
+    { label: 'Total Projects', value: projects.length, tone: 'neutral' },
+    { label: 'Total Test Cases', value: testCases.length, tone: 'neutral' },
+    { label: 'Passed', value: executionCounts.Passed, tone: 'success' },
+    { label: 'Failed', value: executionCounts.Failed, tone: 'danger' },
+    { label: 'Blocked', value: executionCounts.Blocked, tone: 'warning' },
+    { label: 'No Run', value: executionCounts['No Run'], tone: 'muted' },
+  ] as const;
+
   return (
     <section aria-labelledby="dashboard-metrics">
       <h3 id="dashboard-metrics" className="sr-only">
