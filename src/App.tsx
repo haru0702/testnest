@@ -1,22 +1,69 @@
-import type { ReactElement } from 'react';
 import { useState } from 'react';
 import { Sidebar } from './components/Sidebar';
+import type { DefectExecutionContext } from './components/DefectDetails';
+import type { DefectFormValues } from './defects/defect';
 import { DashboardPage } from './pages/DashboardPage';
+import { DefectsPage } from './pages/DefectsPage';
 import { ProjectsPage } from './pages/ProjectsPage';
 import { TestCasesPage } from './pages/TestCasesPage';
 import { TestExecutionPage } from './pages/TestExecutionPage';
 import { NAV_ITEMS, type NavItemId } from './navigation';
 
-const pageContent: Record<NavItemId, ReactElement> = {
-  dashboard: <DashboardPage />,
-  projects: <ProjectsPage />,
-  testCases: <TestCasesPage />,
-  testExecution: <TestExecutionPage />,
-};
-
 export default function App() {
   const [activePage, setActivePage] = useState<NavItemId>('dashboard');
+  const [defectDraft, setDefectDraft] =
+    useState<DefectFormValues | null>(null);
+  const [executionContext, setExecutionContext] =
+    useState<DefectExecutionContext | null>(null);
   const activeNavItem = NAV_ITEMS.find((item) => item.id === activePage);
+
+  function handleNavigate(page: NavItemId) {
+    if (page === 'defects') {
+      setDefectDraft(null);
+    }
+
+    if (page === 'testExecution') {
+      setExecutionContext(null);
+    }
+
+    setActivePage(page);
+  }
+
+  function openDefectDraft(draft: DefectFormValues) {
+    setDefectDraft(draft);
+    setActivePage('defects');
+  }
+
+  function openLinkedExecution(context: DefectExecutionContext) {
+    setExecutionContext(context);
+    setActivePage('testExecution');
+  }
+
+  function renderPage() {
+    switch (activePage) {
+      case 'dashboard':
+        return <DashboardPage />;
+      case 'projects':
+        return <ProjectsPage />;
+      case 'testCases':
+        return <TestCasesPage />;
+      case 'testExecution':
+        return (
+          <TestExecutionPage
+            initialContext={executionContext}
+            onCreateDefect={openDefectDraft}
+          />
+        );
+      case 'defects':
+        return (
+          <DefectsPage
+            initialDraft={defectDraft}
+            onDraftConsumed={() => setDefectDraft(null)}
+            onViewExecution={openLinkedExecution}
+          />
+        );
+    }
+  }
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-950">
@@ -24,7 +71,7 @@ export default function App() {
         <Sidebar
           activePage={activePage}
           navItems={NAV_ITEMS}
-          onNavigate={setActivePage}
+          onNavigate={handleNavigate}
         />
         <main
           aria-labelledby="page-title"
@@ -32,7 +79,7 @@ export default function App() {
         >
           <div className="mx-auto max-w-6xl">
             <p className="text-sm font-medium text-teal-700">
-              Test Case Import and Export
+              Defect Management
             </p>
             <h2
               id="page-title"
@@ -40,7 +87,7 @@ export default function App() {
             >
               {activeNavItem?.label}
             </h2>
-            <div className="mt-6">{pageContent[activePage]}</div>
+            <div className="mt-6">{renderPage()}</div>
           </div>
         </main>
       </div>

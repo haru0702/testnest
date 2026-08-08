@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { ExecutionHistory } from '../components/ExecutionHistory';
 import { QuickRunForm } from '../components/QuickRunForm';
 import { TestCaseExecutionForm } from '../components/TestCaseExecutionForm';
+import type { DefectExecutionContext } from '../components/DefectDetails';
+import type { DefectFormValues } from '../defects/defect';
 import {
   createDetailedExecutionRecord,
   createQuickExecutionRecord,
@@ -22,16 +24,30 @@ import {
   loadTestCases,
 } from '../testCases/testCaseStorage';
 
-export function TestExecutionPage() {
+type TestExecutionPageProps = {
+  initialContext?: DefectExecutionContext | null;
+  onCreateDefect?: (draft: DefectFormValues) => void;
+};
+
+export function TestExecutionPage({
+  initialContext = null,
+  onCreateDefect = () => undefined,
+}: TestExecutionPageProps) {
   const [projects] = useState(() => loadProjects());
   const [scenarios] = useState(() => loadScenarios());
   const [testCases] = useState(() => loadTestCases());
   const [executions, setExecutions] = useState<TestExecution[]>(() =>
     loadExecutions(),
   );
-  const [selectedProjectId, setSelectedProjectId] = useState('');
-  const [selectedScenarioId, setSelectedScenarioId] = useState('');
-  const [selectedTestCaseId, setSelectedTestCaseId] = useState('');
+  const [selectedProjectId, setSelectedProjectId] = useState(
+    initialContext?.projectId ?? '',
+  );
+  const [selectedScenarioId, setSelectedScenarioId] = useState(
+    initialContext?.scenarioId ?? '',
+  );
+  const [selectedTestCaseId, setSelectedTestCaseId] = useState(
+    initialContext?.testCaseId ?? '',
+  );
   const [executionMode, setExecutionMode] = useState<ExecutionMode | null>(null);
 
   const availableScenarios = scenarios.filter(
@@ -201,6 +217,9 @@ export function TestExecutionPage() {
             <ExecutionHistory
               key={selectedTestCase.id}
               executions={executionHistory}
+              testCase={selectedTestCase}
+              initialSelectedExecutionId={initialContext?.executionId}
+              onCreateDefect={onCreateDefect}
             />
           </div>
         )}
