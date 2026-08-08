@@ -10,6 +10,7 @@ import {
 } from '../projects/project';
 import { loadProjects, saveProjects } from '../projects/projectStorage';
 import { deleteProjectTestData } from '../testCases/testCaseStorage';
+import { deleteProjectExecutions } from '../executions/executionStorage';
 
 type FormMode = 'create' | 'edit' | null;
 
@@ -92,6 +93,7 @@ export function ProjectsPage() {
 
     saveProjects(nextProjects);
     deleteProjectTestData(deleteTarget.id);
+    deleteProjectExecutions(deleteTarget.id);
     setProjects(nextProjects);
     setDeleteTarget(null);
   }

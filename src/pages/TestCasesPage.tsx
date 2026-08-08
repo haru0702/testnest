@@ -1,4 +1,8 @@
 import { useState } from 'react';
+import {
+  deleteScenarioExecutions,
+  deleteTestCaseExecutions,
+} from '../executions/executionStorage';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { ScenarioForm } from '../components/ScenarioForm';
 import { ScenarioTable } from '../components/ScenarioTable';
@@ -157,6 +161,7 @@ export function TestCasesPage() {
 
     saveScenarios(nextScenarios);
     deleteScenarioTestCases(scenarioDeleteTarget.id);
+    deleteScenarioExecutions(scenarioDeleteTarget.id);
     setScenarios(nextScenarios);
     setTestCases(nextTestCases);
     setScenarioDeleteTarget(null);
@@ -221,6 +226,7 @@ export function TestCasesPage() {
     );
 
     saveTestCases(nextTestCases);
+    deleteTestCaseExecutions(testCaseDeleteTarget.id);
     setTestCases(nextTestCases);
     setTestCaseDeleteTarget(null);
   }

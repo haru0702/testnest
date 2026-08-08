@@ -2,21 +2,16 @@ import type { ReactElement } from 'react';
 import { useState } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { DashboardPage } from './pages/DashboardPage';
-import { PlaceholderPage } from './pages/PlaceholderPage';
 import { ProjectsPage } from './pages/ProjectsPage';
 import { TestCasesPage } from './pages/TestCasesPage';
+import { TestExecutionPage } from './pages/TestExecutionPage';
 import { NAV_ITEMS, type NavItemId } from './navigation';
 
 const pageContent: Record<NavItemId, ReactElement> = {
   dashboard: <DashboardPage />,
   projects: <ProjectsPage />,
   testCases: <TestCasesPage />,
-  testExecution: (
-    <PlaceholderPage
-      title="Test Execution"
-      description="Manual run tracking will be added in a later phase."
-    />
-  ),
+  testExecution: <TestExecutionPage />,
 };
 
 export default function App() {
@@ -37,7 +32,7 @@ export default function App() {
         >
           <div className="mx-auto max-w-6xl">
             <p className="text-sm font-medium text-teal-700">
-              Phase 3 Scenario and Test Case Management
+              Phase 4 Test Execution
             </p>
             <h2
               id="page-title"

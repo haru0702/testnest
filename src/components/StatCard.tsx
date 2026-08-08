@@ -14,7 +14,10 @@ const toneClasses: Record<StatCardProps['tone'], string> = {
 
 export function StatCard({ label, value, tone }: StatCardProps) {
   return (
-    <article className={`rounded-lg border p-5 shadow-sm ${toneClasses[tone]}`}>
+    <article
+      aria-label={`${label}: ${value}`}
+      className={`rounded-lg border p-5 shadow-sm ${toneClasses[tone]}`}
+    >
       <p className="text-sm font-medium">{label}</p>
       <p className="mt-3 text-3xl font-semibold tracking-normal">{value}</p>
     </article>
