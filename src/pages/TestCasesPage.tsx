@@ -11,6 +11,7 @@ import {
 } from '../executions/execution';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { ScenarioForm } from '../components/ScenarioForm';
+import { TestCaseImportPanel } from '../components/TestCaseImportPanel';
 import {
   ScenarioTable,
   type ScenarioSortKey,
@@ -49,6 +50,15 @@ import {
   saveScenarios,
   saveTestCases,
 } from '../testCases/testCaseStorage';
+import {
+  createTestCaseExportWorkbook,
+  createTestCaseImportTemplate,
+  downloadXlsx,
+} from '../testCases/testCaseSpreadsheet';
+import {
+  buildTestCaseExportRows,
+  getTestCasesForExport,
+} from '../testCases/testCaseTransfer';
 import {
   compareDates,
   compareText,
@@ -97,6 +107,9 @@ export function TestCasesPage() {
   const [testCaseSortDirection, setTestCaseSortDirection] =
     useState<SortDirection>('descending');
   const [testCasePage, setTestCasePage] = useState(1);
+  const [isImporting, setIsImporting] = useState(false);
+  const [transferMessage, setTransferMessage] = useState('');
+  const [transferError, setTransferError] = useState('');
 
   const selectedProject = projects.find(
     (project) => project.id === selectedProjectId,
@@ -359,12 +372,148 @@ export function TestCasesPage() {
     setTestCaseDeleteTarget(null);
   }
 
+  async function handleDownloadTemplate() {
+    setTransferError('');
+
+    try {
+      downloadXlsx(
+        await createTestCaseImportTemplate(),
+        'testnest-test-case-import-template.xlsx',
+      );
+    } catch {
+      setTransferError('The import template could not be generated.');
+    }
+  }
+
+  async function handleExport(mode: 'all' | 'filtered') {
+    setTransferError('');
+
+    try {
+      const selectedTestCases = getTestCasesForExport(
+        testCases,
+        sortedTestCases,
+        mode,
+      );
+      const rows = buildTestCaseExportRows(
+        selectedTestCases,
+        projects,
+        scenarios,
+        latestStatuses,
+      );
+      const workbook = await createTestCaseExportWorkbook(rows);
+
+      downloadXlsx(
+        workbook,
+        mode === 'all'
+          ? 'testnest-test-cases-all.xlsx'
+          : 'testnest-test-cases-filtered.xlsx',
+      );
+    } catch {
+      setTransferError('The Test Case export could not be generated.');
+    }
+  }
+
+  function handleImport(importedTestCases: TestCase[]) {
+    if (importedTestCases.length === 0) {
+      return;
+    }
+
+    const nextTestCases = [...testCases, ...importedTestCases];
+    const firstImportedTestCase = importedTestCases[0];
+
+    saveTestCases(nextTestCases);
+    setTestCases(nextTestCases);
+    setSelectedProjectId(firstImportedTestCase.projectId);
+    setSelectedScenarioId(firstImportedTestCase.scenarioId);
+    clearScenarioFilters();
+    clearTestCaseFilters();
+    setIsImporting(false);
+    setTransferError('');
+    setTransferMessage(
+      `${importedTestCases.length} ${
+        importedTestCases.length === 1 ? 'Test Case was' : 'Test Cases were'
+      } imported.`,
+    );
+  }
+
   return (
     <section aria-label="Test scenario and test case management">
-      <p className="max-w-3xl text-sm leading-6 text-slate-600">
-        Organize test coverage by selecting a project, then opening a test
-        scenario.
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <p className="max-w-3xl text-sm leading-6 text-slate-600">
+          Organize test coverage by selecting a project, then opening a test
+          scenario.
+        </p>
+        <div
+          className="flex flex-wrap gap-2"
+          aria-label="Test Case transfer actions"
+        >
+          <button
+            type="button"
+            className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-700"
+            onClick={handleDownloadTemplate}
+          >
+            Download Import Template
+          </button>
+          <button
+            type="button"
+            className="rounded-md bg-teal-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-teal-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+            onClick={() => {
+              setTransferMessage('');
+              setTransferError('');
+              closeScenarioForm();
+              closeTestCaseForm();
+              setIsImporting(true);
+            }}
+          >
+            Import Test Cases
+          </button>
+          <button
+            type="button"
+            disabled={testCases.length === 0}
+            className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-700"
+            onClick={() => handleExport('all')}
+          >
+            Export All
+          </button>
+          <button
+            type="button"
+            disabled={!selectedScenario || sortedTestCases.length === 0}
+            className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-700"
+            onClick={() => handleExport('filtered')}
+          >
+            Export Filtered
+          </button>
+        </div>
+      </div>
+
+      {transferMessage ? (
+        <p
+          role="status"
+          className="mt-4 border-l-4 border-emerald-500 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800"
+        >
+          {transferMessage}
+        </p>
+      ) : null}
+      {transferError ? (
+        <p
+          role="alert"
+          className="mt-4 border-l-4 border-rose-500 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800"
+        >
+          {transferError}
+        </p>
+      ) : null}
+
+      {isImporting ? (
+        <div className="mt-6">
+          <TestCaseImportPanel
+            projects={projects}
+            scenarios={scenarios}
+            existingTestCases={testCases}
+            onImport={handleImport}
+            onCancel={() => setIsImporting(false)}
+          />
+        </div>
+      ) : null}
 
       <div className="mt-5 grid max-w-3xl gap-4 sm:grid-cols-2">
         <div>
