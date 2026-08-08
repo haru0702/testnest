@@ -1,4 +1,5 @@
 import type { TestCase, TestScenario, TestStep } from './testCase';
+import type { UserReference } from '../users/user';
 
 export const SCENARIO_STORAGE_KEY = 'testnest.scenarios';
 export const TEST_CASE_STORAGE_KEY = 'testnest.testCases';
@@ -9,6 +10,19 @@ type ReadWriteStorage = ReadStorage & WriteStorage;
 
 function isString(value: unknown): value is string {
   return typeof value === 'string';
+}
+
+function isOptionalUserReference(value: unknown): value is UserReference | undefined {
+  if (value === undefined) {
+    return true;
+  }
+
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const reference = value as Record<string, unknown>;
+  return isString(reference.userId) && isString(reference.displayName);
 }
 
 function isTestStep(value: unknown): value is TestStep {
@@ -38,7 +52,9 @@ function isTestScenario(value: unknown): value is TestScenario {
     isString(scenario.description) &&
     isString(scenario.projectId) &&
     isString(scenario.createdDate) &&
-    isString(scenario.updatedDate)
+    isString(scenario.updatedDate) &&
+    isOptionalUserReference(scenario.createdBy) &&
+    isOptionalUserReference(scenario.updatedBy)
   );
 }
 
@@ -59,7 +75,9 @@ function isTestCase(value: unknown): value is TestCase {
     isString(testCase.scenarioId) &&
     isString(testCase.projectId) &&
     isString(testCase.createdDate) &&
-    isString(testCase.updatedDate)
+    isString(testCase.updatedDate) &&
+    isOptionalUserReference(testCase.createdBy) &&
+    isOptionalUserReference(testCase.updatedBy)
   );
 }
 

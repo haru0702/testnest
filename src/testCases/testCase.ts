@@ -1,4 +1,6 @@
-export type TestScenario = {
+import type { AuditedRecord } from '../users/user';
+
+export type TestScenario = AuditedRecord & {
   id: string;
   name: string;
   description: string;
@@ -13,7 +15,7 @@ export type TestStep = {
   expectedResult: string;
 };
 
-export type TestCase = {
+export type TestCase = AuditedRecord & {
   id: string;
   name: string;
   description: string;

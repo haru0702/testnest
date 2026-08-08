@@ -1,4 +1,5 @@
 import type { TestCase } from '../testCases/testCase';
+import type { UserReference } from '../users/user';
 
 export const EXECUTION_STATUSES = [
   'Passed',
@@ -29,6 +30,7 @@ export type TestExecution = {
   executionDate: string;
   notes: string;
   stepResults: StepExecutionResult[];
+  executedBy?: UserReference;
 };
 
 export type ExecutionStatusCounts = Record<ExecutionStatus, number>;

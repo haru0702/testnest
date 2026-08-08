@@ -69,6 +69,8 @@ import {
   sortItems,
   type SortDirection,
 } from '../table/tableUtils';
+import { assignCreatedAudit, assignUpdatedAudit, type User } from '../users/user';
+import { hasPermission, PERMISSION_DENIED_MESSAGE, type Permission } from '../users/permissions';
 
 type FormMode = 'create' | 'edit' | null;
 
@@ -76,12 +78,16 @@ type TestCasesPageProps = {
   initialProjectId?: string;
   initialScenarioId?: string;
   initialStatusFilter?: ExecutionStatus;
+  activeUser: User;
+  onPermissionDenied: () => void;
 };
 
 export function TestCasesPage({
   initialProjectId = '',
   initialScenarioId = '',
   initialStatusFilter,
+  activeUser,
+  onPermissionDenied,
 }: TestCasesPageProps) {
   const [projects] = useState(() => loadProjects());
   const [scenarios, setScenarios] = useState<TestScenario[]>(() =>
@@ -185,6 +191,44 @@ export function TestCasesPage({
     testCaseSortDirection,
   );
   const paginatedTestCases = paginateItems(sortedTestCases, testCasePage);
+  const canTransfer = hasPermission(activeUser, 'canImportExportTestCases');
+  const canCreateScenario = hasPermission(activeUser, 'canCreateScenarios');
+  const canEditScenario = hasPermission(activeUser, 'canEditScenarios');
+  const canDeleteScenario = hasPermission(activeUser, 'canDeleteScenarios');
+  const canCreateTestCase = hasPermission(activeUser, 'canCreateTestCases');
+  const canEditTestCase = hasPermission(activeUser, 'canEditTestCases');
+  const canDeleteTestCase = hasPermission(activeUser, 'canDeleteTestCases');
+
+  function guard(permission: Permission) {
+    if (hasPermission(activeUser, permission)) return true;
+    setTransferError(PERMISSION_DENIED_MESSAGE);
+    onPermissionDenied();
+    return false;
+  }
+
+  function openCreateScenario() {
+    if (!guard('canCreateScenarios')) return;
+    setEditingScenario(null);
+    setScenarioFormMode('create');
+  }
+
+  function openEditScenario(scenario: TestScenario) {
+    if (!guard('canEditScenarios')) return;
+    setEditingScenario(scenario);
+    setScenarioFormMode('edit');
+  }
+
+  function openCreateTestCase() {
+    if (!guard('canCreateTestCases')) return;
+    setEditingTestCase(null);
+    setTestCaseFormMode('create');
+  }
+
+  function openEditTestCase(testCase: TestCase) {
+    if (!guard('canEditTestCases')) return;
+    setEditingTestCase(testCase);
+    setTestCaseFormMode('edit');
+  }
 
   function handleScenarioSort(nextSortKey: ScenarioSortKey) {
     setScenarioSortDirection(
@@ -257,6 +301,9 @@ export function TestCasesPage({
   }
 
   function handleScenarioSubmit(values: ScenarioFormValues) {
+    if (!guard(editingScenario ? 'canEditScenarios' : 'canCreateScenarios')) {
+      return PERMISSION_DENIED_MESSAGE;
+    }
     if (!selectedProject) {
       return 'Select a project before creating a scenario.';
     }
@@ -277,18 +324,18 @@ export function TestCasesPage({
     const nextScenarios = editingScenario
       ? scenarios.map((scenario) =>
           scenario.id === editingScenario.id
-            ? { ...scenario, ...normalizedValues, updatedDate: now }
+            ? assignUpdatedAudit({ ...scenario, ...normalizedValues, updatedDate: now }, activeUser)
             : scenario,
         )
       : [
           ...scenarios,
-          {
+          assignCreatedAudit({
             id: crypto.randomUUID(),
             ...normalizedValues,
             projectId: selectedProject.id,
             createdDate: now,
             updatedDate: now,
-          },
+          }, activeUser),
         ];
 
     saveScenarios(nextScenarios);
@@ -302,6 +349,7 @@ export function TestCasesPage({
     if (!scenarioDeleteTarget) {
       return;
     }
+    if (!guard('canDeleteScenarios')) return;
 
     const nextScenarios = scenarios.filter(
       (scenario) => scenario.id !== scenarioDeleteTarget.id,
@@ -321,6 +369,9 @@ export function TestCasesPage({
   function handleTestCaseSubmit(
     values: TestCaseFormValues,
   ): TestCaseFormErrors | null {
+    if (!guard(editingTestCase ? 'canEditTestCases' : 'canCreateTestCases')) {
+      return { nameError: PERMISSION_DENIED_MESSAGE, stepErrors: [] };
+    }
     if (!selectedProject || !selectedScenario) {
       return {
         nameError: 'Select a scenario before creating a test case.',
@@ -345,19 +396,19 @@ export function TestCasesPage({
     const nextTestCases = editingTestCase
       ? testCases.map((testCase) =>
           testCase.id === editingTestCase.id
-            ? { ...testCase, ...normalizedValues, updatedDate: now }
+            ? assignUpdatedAudit({ ...testCase, ...normalizedValues, updatedDate: now }, activeUser)
             : testCase,
         )
       : [
           ...testCases,
-          {
+          assignCreatedAudit({
             id: crypto.randomUUID(),
             ...normalizedValues,
             scenarioId: selectedScenario.id,
             projectId: selectedProject.id,
             createdDate: now,
             updatedDate: now,
-          },
+          }, activeUser),
         ];
 
     saveTestCases(nextTestCases);
@@ -371,6 +422,7 @@ export function TestCasesPage({
     if (!testCaseDeleteTarget) {
       return;
     }
+    if (!guard('canDeleteTestCases')) return;
 
     const nextTestCases = testCases.filter(
       (testCase) => testCase.id !== testCaseDeleteTarget.id,
@@ -383,6 +435,7 @@ export function TestCasesPage({
   }
 
   async function handleDownloadTemplate() {
+    if (!guard('canImportExportTestCases')) return;
     setTransferError('');
 
     try {
@@ -396,6 +449,7 @@ export function TestCasesPage({
   }
 
   async function handleExport(mode: 'all' | 'filtered') {
+    if (!guard('canImportExportTestCases')) return;
     setTransferError('');
 
     try {
@@ -424,11 +478,15 @@ export function TestCasesPage({
   }
 
   function handleImport(importedTestCases: TestCase[]) {
+    if (!guard('canImportExportTestCases')) return;
     if (importedTestCases.length === 0) {
       return;
     }
 
-    const nextTestCases = [...testCases, ...importedTestCases];
+    const auditedTestCases = importedTestCases.map((testCase) =>
+      assignCreatedAudit(testCase, activeUser),
+    );
+    const nextTestCases = [...testCases, ...auditedTestCases];
     const firstImportedTestCase = importedTestCases[0];
 
     saveTestCases(nextTestCases);
@@ -453,7 +511,7 @@ export function TestCasesPage({
           Organize test coverage by selecting a project, then opening a test
           scenario.
         </p>
-        <div
+        {canTransfer ? <div
           className="flex flex-wrap gap-2"
           aria-label="Test Case transfer actions"
         >
@@ -493,7 +551,7 @@ export function TestCasesPage({
           >
             Export Filtered
           </button>
-        </div>
+        </div> : null}
       </div>
 
       {transferMessage ? (
@@ -644,14 +702,11 @@ export function TestCasesPage({
                   {selectedScenario.name}
                 </h3>
               </div>
-              {testCaseFormMode || scenarioTestCases.length === 0 ? null : (
+              {testCaseFormMode || scenarioTestCases.length === 0 || !canCreateTestCase ? null : (
                 <button
                   type="button"
                   className="rounded-md bg-teal-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
-                  onClick={() => {
-                    setEditingTestCase(null);
-                    setTestCaseFormMode('create');
-                  }}
+                  onClick={openCreateTestCase}
                 >
                   Create Test Case
                 </button>
@@ -670,11 +725,8 @@ export function TestCasesPage({
                 <EmptyState
                   title="No test cases yet"
                   description="Create the first test case for this scenario."
-                  actionLabel="Create Test Case"
-                  onAction={() => {
-                    setEditingTestCase(null);
-                    setTestCaseFormMode('create');
-                  }}
+                  actionLabel={canCreateTestCase ? 'Create Test Case' : undefined}
+                  onAction={canCreateTestCase ? openCreateTestCase : undefined}
                 />
               ) : (
                 <>
@@ -720,11 +772,10 @@ export function TestCasesPage({
                         sortKey={testCaseSortKey}
                         sortDirection={testCaseSortDirection}
                         onSort={handleTestCaseSort}
-                        onEdit={(testCase) => {
-                          setEditingTestCase(testCase);
-                          setTestCaseFormMode('edit');
-                        }}
+                        onEdit={openEditTestCase}
                         onRequestDelete={setTestCaseDeleteTarget}
+                        canEdit={canEditTestCase}
+                        canDelete={canDeleteTestCase}
                       />
                       <TablePagination
                         page={paginatedTestCases.page}
@@ -753,14 +804,11 @@ export function TestCasesPage({
                   Test Scenarios
                 </h3>
               </div>
-              {scenarioFormMode || projectScenarios.length === 0 ? null : (
+              {scenarioFormMode || projectScenarios.length === 0 || !canCreateScenario ? null : (
                 <button
                   type="button"
                   className="rounded-md bg-teal-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
-                  onClick={() => {
-                    setEditingScenario(null);
-                    setScenarioFormMode('create');
-                  }}
+                  onClick={openCreateScenario}
                 >
                   Create Scenario
                 </button>
@@ -779,11 +827,8 @@ export function TestCasesPage({
                 <EmptyState
                   title="No scenarios yet"
                   description="Create the first test scenario for this project."
-                  actionLabel="Create Scenario"
-                  onAction={() => {
-                    setEditingScenario(null);
-                    setScenarioFormMode('create');
-                  }}
+                  actionLabel={canCreateScenario ? 'Create Scenario' : undefined}
+                  onAction={canCreateScenario ? openCreateScenario : undefined}
                 />
               ) : (
                 <>
@@ -811,11 +856,10 @@ export function TestCasesPage({
                         sortDirection={scenarioSortDirection}
                         onSort={handleScenarioSort}
                         onOpen={openScenario}
-                        onEdit={(scenario) => {
-                          setEditingScenario(scenario);
-                          setScenarioFormMode('edit');
-                        }}
+                        onEdit={openEditScenario}
                         onRequestDelete={setScenarioDeleteTarget}
+                        canEdit={canEditScenario}
+                        canDelete={canDeleteScenario}
                       />
                       <TablePagination
                         page={paginatedScenarios.page}

@@ -25,6 +25,8 @@ import {
 import { loadProjects, saveProjects } from '../projects/projectStorage';
 import { deleteProjectTestData } from '../testCases/testCaseStorage';
 import { deleteProjectExecutions } from '../executions/executionStorage';
+import { assignCreatedAudit, assignUpdatedAudit, type User } from '../users/user';
+import { hasPermission, PERMISSION_DENIED_MESSAGE } from '../users/permissions';
 import {
   compareDates,
   compareText,
@@ -38,7 +40,12 @@ import {
 
 type FormMode = 'create' | 'edit' | null;
 
-export function ProjectsPage() {
+type ProjectsPageProps = {
+  activeUser: User;
+  onPermissionDenied: () => void;
+};
+
+export function ProjectsPage({ activeUser, onPermissionDenied }: ProjectsPageProps) {
   const [projects, setProjects] = useState<Project[]>(() => loadProjects());
   const [formMode, setFormMode] = useState<FormMode>(null);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
@@ -73,6 +80,15 @@ export function ProjectsPage() {
     sortDirection,
   );
   const paginatedProjects = paginateItems(sortedProjects, page);
+  const canCreate = hasPermission(activeUser, 'canCreateProjects');
+  const canEdit = hasPermission(activeUser, 'canEditProjects');
+  const canDelete = hasPermission(activeUser, 'canDeleteProjects');
+
+  function guard(permission: 'canCreateProjects' | 'canEditProjects' | 'canDeleteProjects') {
+    if (hasPermission(activeUser, permission)) return true;
+    onPermissionDenied();
+    return false;
+  }
 
   function handleSort(nextSortKey: ProjectSortKey) {
     setSortDirection(
@@ -96,16 +112,21 @@ export function ProjectsPage() {
   }
 
   function openCreateForm() {
+    if (!guard('canCreateProjects')) return;
     setEditingProject(null);
     setFormMode('create');
   }
 
   function openEditForm(project: Project) {
+    if (!guard('canEditProjects')) return;
     setEditingProject(project);
     setFormMode('edit');
   }
 
   function handleSubmit(values: ProjectFormValues) {
+    if (!guard(editingProject ? 'canEditProjects' : 'canCreateProjects')) {
+      return PERMISSION_DENIED_MESSAGE;
+    }
     const nameError = getProjectNameError(
       values.name,
       projects,
@@ -126,17 +147,17 @@ export function ProjectsPage() {
     const nextProjects = editingProject
       ? projects.map((project) =>
           project.id === editingProject.id
-            ? { ...project, ...normalizedValues, updatedDate: now }
+            ? assignUpdatedAudit({ ...project, ...normalizedValues, updatedDate: now }, activeUser)
             : project,
         )
       : [
           ...projects,
-          {
+          assignCreatedAudit({
             id: crypto.randomUUID(),
             ...normalizedValues,
             createdDate: now,
             updatedDate: now,
-          },
+          }, activeUser),
         ];
 
     saveProjects(nextProjects);
@@ -150,6 +171,7 @@ export function ProjectsPage() {
     if (!deleteTarget) {
       return;
     }
+    if (!guard('canDeleteProjects')) return;
 
     const nextProjects = projects.filter(
       (project) => project.id !== deleteTarget.id,
@@ -168,7 +190,7 @@ export function ProjectsPage() {
         <p className="max-w-2xl text-sm leading-6 text-slate-600">
           Create and maintain the projects that organize your QA work.
         </p>
-        {formMode || projects.length === 0 ? null : (
+        {formMode || projects.length === 0 || !canCreate ? null : (
           <button
             type="button"
             className="rounded-md bg-teal-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
@@ -196,13 +218,13 @@ export function ProjectsPage() {
               Create your first project to start organizing test cases and test
               runs.
             </p>
-            <button
+            {canCreate ? <button
               type="button"
               className="mt-5 rounded-md bg-teal-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
               onClick={openCreateForm}
             >
               Create Project
-            </button>
+            </button> : null}
           </div>
         ) : (
           <>
@@ -249,6 +271,8 @@ export function ProjectsPage() {
                   onSort={handleSort}
                   onEdit={openEditForm}
                   onRequestDelete={setDeleteTarget}
+                  canEdit={canEdit}
+                  canDelete={canDelete}
                 />
                 <TablePagination
                   page={paginatedProjects.page}

@@ -155,7 +155,7 @@ async function addManualDefect(
     await page.getByLabel('Linked Project').selectOption({ label: options.project });
   }
   if (options.assignee) {
-    await page.getByLabel('Assignee Name').fill(options.assignee);
+    await page.getByLabel('Assignee').selectOption({ label: options.assignee });
   }
   await page.getByRole('button', { name: 'Save Defect' }).click();
 }
@@ -551,7 +551,7 @@ test.describe('Defect management', () => {
     await page.getByLabel('Severity').selectOption('High');
     await page.getByLabel('Priority').selectOption('High');
     await page.getByLabel('Status').selectOption('Open');
-    await page.getByLabel('Reporter Name').fill('QA Tester');
+    await expect(page.getByLabel('Reporter')).toHaveValue('TestNest Admin');
     await page.getByRole('button', { name: 'Save Defect' }).click();
 
     const row = page.getByRole('row').filter({
@@ -568,7 +568,9 @@ test.describe('Defect management', () => {
     await expect(page.getByText('1. Open Login page\n2. Enter credentials\n3. Click Login')).toBeVisible();
     await expect(page.getByText('User is redirected to Dashboard.')).toBeVisible();
     await expect(page.getByText('An error message is displayed.')).toBeVisible();
-    await expect(page.getByText('QA Tester', { exact: true })).toBeVisible();
+    await expect(
+      page.getByRole('region', { name: 'Login page error on submit' }).getByText('TestNest Admin', { exact: true }).first(),
+    ).toBeVisible();
 
     await page.reload();
     await openDefects(page);
@@ -583,7 +585,11 @@ test.describe('Defect management', () => {
       severity: 'High',
       priority: 'High',
       status: 'Open',
-      reporterName: 'QA Tester',
+      reporterName: 'TestNest Admin',
+      reporter: {
+        userId: 'testnest-local-admin',
+        displayName: 'TestNest Admin',
+      },
     });
   });
 
@@ -602,7 +608,7 @@ test.describe('Defect management', () => {
     await page.getByLabel('Status').selectOption('In Progress');
     await page.getByLabel('Severity').selectOption('Critical');
     await page.getByLabel('Priority').selectOption('High');
-    await page.getByLabel('Assignee Name').fill('QA User');
+    await page.getByLabel('Assignee').selectOption({ label: 'TestNest Admin' });
     await page.getByRole('button', { name: 'Save Defect' }).click();
     await expect(row.getByText('In Progress', { exact: true })).toBeVisible();
 
@@ -613,7 +619,7 @@ test.describe('Defect management', () => {
       status: 'In Progress',
       severity: 'Critical',
       priority: 'High',
-      assigneeName: 'QA User',
+      assigneeName: 'TestNest Admin',
       createdDate: '2025-01-01T00:00:00.000Z',
     });
     expect(firstSaved.updatedDate).not.toBe('2025-01-01T00:00:00.000Z');
@@ -633,7 +639,7 @@ test.describe('Defect management', () => {
     await page.getByLabel('Status').selectOption('Closed');
     await page.getByLabel('Severity').selectOption('Low');
     await page.getByLabel('Priority').selectOption('Low');
-    await page.getByLabel('Assignee Name').fill('Cancelled assignee');
+    await page.getByLabel('Assignee').selectOption('');
     await page.getByRole('button', { name: 'Cancel' }).click();
 
     expect(
@@ -644,7 +650,7 @@ test.describe('Defect management', () => {
     await expect(row.getByText('Reopened', { exact: true })).toBeVisible();
     await expect(row.getByText('Critical', { exact: true })).toBeVisible();
     await expect(row.getByText('High', { exact: true })).toBeVisible();
-    await expect(row.getByText('QA User', { exact: true })).toBeVisible();
+    await expect(row.getByText('TestNest Admin', { exact: true })).toBeVisible();
   });
 
   test('sorts every supported defect field in ascending and descending order', async ({ page }) => {

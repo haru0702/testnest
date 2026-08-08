@@ -1,6 +1,20 @@
 import { PROJECT_STATUSES, type Project } from './project';
+import type { UserReference } from '../users/user';
 
 export const PROJECT_STORAGE_KEY = 'testnest.projects';
+
+function isOptionalUserReference(value: unknown): value is UserReference | undefined {
+  if (value === undefined) {
+    return true;
+  }
+
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const reference = value as Record<string, unknown>;
+  return typeof reference.userId === 'string' && typeof reference.displayName === 'string';
+}
 
 function isProject(value: unknown): value is Project {
   if (!value || typeof value !== 'object') {
@@ -16,7 +30,9 @@ function isProject(value: unknown): value is Project {
     typeof project.status === 'string' &&
     PROJECT_STATUSES.includes(project.status as Project['status']) &&
     typeof project.createdDate === 'string' &&
-    typeof project.updatedDate === 'string'
+    typeof project.updatedDate === 'string' &&
+    isOptionalUserReference(project.createdBy) &&
+    isOptionalUserReference(project.updatedBy)
   );
 }
 

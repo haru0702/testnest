@@ -1,12 +1,16 @@
 import type { NavItem, NavItemId } from '../navigation';
+import { getActiveUsers, type User } from '../users/user';
 
 type SidebarProps = {
   activePage: NavItemId;
   navItems: NavItem[];
   onNavigate: (page: NavItemId) => void;
+  users: User[];
+  activeUser: User;
+  onSwitchUser: (userId: string) => void;
 };
 
-export function Sidebar({ activePage, navItems, onNavigate }: SidebarProps) {
+export function Sidebar({ activePage, navItems, onNavigate, users, activeUser, onSwitchUser }: SidebarProps) {
   return (
     <aside
       aria-label="Main navigation"
@@ -41,6 +45,27 @@ export function Sidebar({ activePage, navItems, onNavigate }: SidebarProps) {
           })}
         </ul>
       </nav>
+
+      <div className="mt-4 border-t border-slate-700 px-2 pt-4 md:mt-auto">
+        <label className="text-xs font-semibold uppercase text-slate-400" htmlFor="current-user">
+          Current User
+        </label>
+        <select
+          id="current-user"
+          className="testnest-select mt-2 w-full rounded-md border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-white outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-900"
+          value={activeUser.id}
+          onChange={(event) => onSwitchUser(event.target.value)}
+        >
+          {getActiveUsers(users).map((user) => (
+            <option key={user.id} value={user.id}>
+              {user.displayName}
+            </option>
+          ))}
+        </select>
+        <p className="mt-2 text-xs text-slate-400">
+          {activeUser.role} - Local user simulation
+        </p>
+      </div>
     </aside>
   );
 }

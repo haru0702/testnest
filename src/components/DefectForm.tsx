@@ -17,6 +17,7 @@ import {
 import type { TestExecution } from '../executions/execution';
 import type { Project } from '../projects/project';
 import type { TestCase, TestScenario } from '../testCases/testCase';
+import { getAssignableUsers, type User } from '../users/user';
 
 type DefectFormProps = {
   defect?: Defect;
@@ -27,6 +28,10 @@ type DefectFormProps = {
   executions: TestExecution[];
   onSubmit: (values: DefectFormValues) => DefectFormErrors;
   onCancel: () => void;
+  users: User[];
+  activeUser: User;
+  canAssignDefects: boolean;
+  canManageStatus: boolean;
 };
 
 const inputClasses =
@@ -50,11 +55,21 @@ export function DefectForm({
   executions,
   onSubmit,
   onCancel,
+  users,
+  activeUser,
+  canAssignDefects,
+  canManageStatus,
 }: DefectFormProps) {
   const [values, setValues] = useState<DefectFormValues>(() =>
     defect
       ? getDefectFormValues(defect)
-      : initialValues ?? { ...EMPTY_DEFECT_FORM_VALUES },
+      : {
+          ...(initialValues ?? EMPTY_DEFECT_FORM_VALUES),
+          reporterName:
+            initialValues?.reporterName || activeUser.displayName,
+          reporterUserId:
+            initialValues?.reporterUserId || activeUser.id,
+        },
   );
   const [errors, setErrors] = useState<DefectFormErrors>({
     titleError: null,
@@ -73,6 +88,13 @@ export function DefectForm({
   const selectedExecution = availableExecutions.find(
     (execution) => execution.id === values.executionId,
   );
+  const selectedAssignee = users.find(
+    (user) => user.id === values.assigneeUserId,
+  );
+  const assignableUsers = getAssignableUsers(users);
+  const assigneeOptions = selectedAssignee && selectedAssignee.status === 'Inactive'
+    ? [...assignableUsers, selectedAssignee]
+    : assignableUsers;
 
   function updateValue<Key extends keyof DefectFormValues>(
     key: Key,
@@ -134,6 +156,14 @@ export function DefectForm({
     }));
   }
 
+  function handleAssigneeChange(userId: string) {
+    setValues((current) => ({
+      ...current,
+      assigneeUserId: userId,
+      assigneeName: userId ? current.assigneeName : '',
+    }));
+  }
+
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setErrors(onSubmit(values));
@@ -183,6 +213,7 @@ export function DefectForm({
               value={values.status}
               options={DEFECT_STATUSES}
               required
+              disabled={!canManageStatus}
               onChange={(value) => updateValue('status', value as DefectStatus)}
             />
             <SelectField
@@ -201,18 +232,19 @@ export function DefectForm({
               required
               onChange={(value) => updateValue('priority', value as DefectPriority)}
             />
-            <TextField
+            <SelectField
               id="defect-assignee"
-              label="Assignee Name"
-              value={values.assigneeName}
-              onChange={(value) => updateValue('assigneeName', value)}
+              label="Assignee"
+              value={values.assigneeUserId ?? ''}
+              placeholder={values.assigneeName ? `Keep ${values.assigneeName}` : 'Unassigned'}
+              disabled={!canAssignDefects}
+              options={assigneeOptions.map((user) => ({ value: user.id, label: `${user.displayName}${user.status === 'Inactive' ? ' (Inactive)' : ''}` }))}
+              onChange={handleAssigneeChange}
             />
-            <TextField
-              id="defect-reporter"
-              label="Reporter Name"
-              value={values.reporterName}
-              onChange={(value) => updateValue('reporterName', value)}
-            />
+            <div>
+              <FieldLabel htmlFor="defect-reporter">Reporter</FieldLabel>
+              <input id="defect-reporter" type="text" readOnly className={`${inputClasses} bg-slate-100`} value={values.reporterName || activeUser.displayName} />
+            </div>
           </div>
         </FormSection>
 

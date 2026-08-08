@@ -52,6 +52,8 @@ import {
 } from '../table/tableUtils';
 import { downloadXlsx } from '../testCases/testCaseSpreadsheet';
 import { loadScenarios, loadTestCases } from '../testCases/testCaseStorage';
+import type { User } from '../users/user';
+import { hasPermission } from '../users/permissions';
 
 const REPORT_TABS: { id: ReportKey; label: string }[] = [
   { id: 'executionSummary', label: 'Test Execution Summary' },
@@ -69,11 +71,17 @@ const REPORT_TABS: { id: ReportKey; label: string }[] = [
 type ReportsPageProps = {
   initialReport?: ReportKey;
   initialFilters?: Partial<ReportFilters>;
+  users: User[];
+  activeUser: User;
+  onPermissionDenied: () => void;
 };
 
 export function ReportsPage({
   initialReport = 'executionSummary',
   initialFilters = {},
+  users,
+  activeUser,
+  onPermissionDenied,
 }: ReportsPageProps) {
   const [projects] = useState(() => loadProjects());
   const [scenarios] = useState(() => loadScenarios());
@@ -90,6 +98,7 @@ export function ReportsPage({
   const [traceabilityFilters, setTraceabilityFilters] =
     useState<TraceabilityFilters>({ ...EMPTY_TRACEABILITY_FILTERS });
   const [exportError, setExportError] = useState('');
+  const canExport = hasPermission(activeUser, 'canExportReports');
 
   const data = { projects, scenarios, testCases, executions, defects };
   const filteredData = filterReportData(data, appliedFilters);
@@ -140,6 +149,10 @@ export function ReportsPage({
     reportName: string,
     rows: readonly ReportExportRow[],
   ) {
+    if (!canExport) {
+      onPermissionDenied();
+      return;
+    }
     setExportError('');
 
     try {
@@ -194,6 +207,9 @@ export function ReportsPage({
           <FilterSelect id="report-defect-status" label="Defect Status" value={draftFilters.defectStatus} options={[['all', 'All Defect Statuses'], ...DEFECT_STATUSES.map((status) => [status, status] as const)]} onChange={(value) => updateDraft('defectStatus', value as ReportFilters['defectStatus'])} />
           <FilterSelect id="report-severity" label="Severity" value={draftFilters.severity} options={[['all', 'All Severities'], ...DEFECT_SEVERITIES.map((severity) => [severity, severity] as const)]} onChange={(value) => updateDraft('severity', value as ReportFilters['severity'])} />
           <FilterSelect id="report-priority" label="Priority" value={draftFilters.priority} options={[['all', 'All Priorities'], ...DEFECT_PRIORITIES.map((priority) => [priority, priority] as const)]} onChange={(value) => updateDraft('priority', value as ReportFilters['priority'])} />
+          <FilterSelect id="report-executed-by" label="Executed By" value={draftFilters.executedByUserId} options={[["all", "All Users"], ...users.map((user) => [user.id, user.displayName] as const)]} onChange={(value) => updateDraft('executedByUserId', value)} />
+          <FilterSelect id="report-defect-assignee" label="Defect Assignee" value={draftFilters.defectAssigneeUserId} options={[["all", "All Assignees"], ...users.map((user) => [user.id, user.displayName] as const)]} onChange={(value) => updateDraft('defectAssigneeUserId', value)} />
+          <FilterSelect id="report-defect-reporter" label="Defect Reporter" value={draftFilters.defectReporterUserId} options={[["all", "All Reporters"], ...users.map((user) => [user.id, user.displayName] as const)]} onChange={(value) => updateDraft('defectReporterUserId', value)} />
           <DateField id="report-from-date" label="From Date" value={draftFilters.fromDate} invalid={Boolean(dateError)} onChange={(value) => updateDraft('fromDate', value)} />
           <DateField id="report-to-date" label="To Date" value={draftFilters.toDate} invalid={Boolean(dateError)} onChange={(value) => updateDraft('toDate', value)} />
         </div>
@@ -242,10 +258,10 @@ export function ReportsPage({
 
       <div role="tabpanel" aria-label={REPORT_TABS.find((report) => report.id === activeReport)?.label}>
         {activeReport === 'executionSummary' ? (
-          <ExecutionSummaryReport summary={executionSummary} onExport={exportActiveSummary} />
+          <ExecutionSummaryReport summary={executionSummary} onExport={canExport ? exportActiveSummary : undefined} />
         ) : null}
         {activeReport === 'executionByProject' ? (
-          <ExecutionByProjectReport rows={getExecutionByProject(filteredData)} onExport={exportRows} />
+          <ExecutionByProjectReport rows={getExecutionByProject(filteredData)} onExport={canExport ? exportRows : undefined} />
         ) : null}
         {activeReport === 'executionByScenario' ? (
           <ExecutionTableReport title="Test Execution by Scenario" rows={getExecutionByScenario(filteredData).map((row) => ({
@@ -261,33 +277,33 @@ export function ReportsPage({
               noRun: row['No Run'],
               execution: row.executionPercentage,
             },
-          }))} includeScenario onExport={exportRows} />
+          }))} includeScenario onExport={canExport ? exportRows : undefined} />
         ) : null}
         {activeReport === 'defectSummary' ? (
-          <DefectSummaryReport summary={defectSummary} rows={getDefectsByStatus(filteredData.defects)} onExport={exportActiveSummary} />
+          <DefectSummaryReport summary={defectSummary} rows={getDefectsByStatus(filteredData.defects)} onExport={canExport ? exportActiveSummary : undefined} />
         ) : null}
         {activeReport === 'defectsByProject' ? (
-          <DefectsByProjectReport rows={getDefectsByProject(filteredData.projects, filteredData.defects)} onExport={exportRows} />
+          <DefectsByProjectReport rows={getDefectsByProject(filteredData.projects, filteredData.defects)} onExport={canExport ? exportRows : undefined} />
         ) : null}
         {activeReport === 'defectsBySeverity' ? (
-          <CategoryReport title="Defects by Severity" categoryLabel="Severity" rows={getDefectsBySeverity(filteredData.defects)} onExport={exportRows} />
+          <CategoryReport title="Defects by Severity" categoryLabel="Severity" rows={getDefectsBySeverity(filteredData.defects)} onExport={canExport ? exportRows : undefined} />
         ) : null}
         {activeReport === 'defectsByPriority' ? (
-          <CategoryReport title="Defects by Priority" categoryLabel="Priority" rows={getDefectsByPriority(filteredData.defects)} onExport={exportRows} />
+          <CategoryReport title="Defects by Priority" categoryLabel="Priority" rows={getDefectsByPriority(filteredData.defects)} onExport={canExport ? exportRows : undefined} />
         ) : null}
         {activeReport === 'defectsByStatus' ? (
-          <CategoryReport title="Defects by Status" categoryLabel="Status" rows={getDefectsByStatus(filteredData.defects)} onExport={exportRows} />
+          <CategoryReport title="Defects by Status" categoryLabel="Status" rows={getDefectsByStatus(filteredData.defects)} onExport={canExport ? exportRows : undefined} />
         ) : null}
         {activeReport === 'traceability' ? (
           <TraceabilityReport
             rows={getTraceabilityRows(filteredData, traceabilityFilters)}
             filters={traceabilityFilters}
             onFilterChange={setTraceabilityFilters}
-            onExport={exportRows}
+            onExport={canExport ? exportRows : undefined}
           />
         ) : null}
         {activeReport === 'attention' ? (
-          <AttentionReport rows={getAttentionRows(filteredData)} onExport={exportRows} />
+          <AttentionReport rows={getAttentionRows(filteredData)} onExport={canExport ? exportRows : undefined} />
         ) : null}
       </div>
     </section>
@@ -314,21 +330,21 @@ function DateField({ id, label, value, invalid, onChange }: { id: string; label:
   );
 }
 
-function ReportHeader({ title, description, onExport }: { title: string; description: string; onExport: () => void }) {
+function ReportHeader({ title, description, onExport }: { title: string; description: string; onExport?: () => void }) {
   return (
     <div className="flex flex-wrap items-start justify-between gap-4">
       <div>
         <h3 className="text-xl font-semibold text-slate-950">{title}</h3>
         <p className="mt-1 text-sm leading-6 text-slate-600">{description}</p>
       </div>
-      <button type="button" className="rounded-md border border-teal-300 bg-white px-4 py-2 text-sm font-semibold text-teal-700 transition hover:bg-teal-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700" onClick={onExport}>
+      {onExport ? <button type="button" className="rounded-md border border-teal-300 bg-white px-4 py-2 text-sm font-semibold text-teal-700 transition hover:bg-teal-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700" onClick={onExport}>
         Export Report
-      </button>
+      </button> : null}
     </div>
   );
 }
 
-function ExecutionSummaryReport({ summary, onExport }: { summary: ReturnType<typeof getExecutionSummary>; onExport: () => void }) {
+function ExecutionSummaryReport({ summary, onExport }: { summary: ReturnType<typeof getExecutionSummary>; onExport?: () => void }) {
   return (
     <section aria-label="Test Execution Summary report" className="space-y-5">
       <ReportHeader title="Test Execution Summary" description="Latest execution status and completion across matching Test Cases." onExport={onExport} />
@@ -353,7 +369,9 @@ function ExecutionSummaryReport({ summary, onExport }: { summary: ReturnType<typ
   );
 }
 
-function ExecutionByProjectReport({ rows, onExport }: { rows: ReturnType<typeof getExecutionByProject>; onExport: (name: string, rows: ReportExportRow[]) => void }) {
+type ReportExportHandler = (name: string, rows: ReportExportRow[]) => void;
+
+function ExecutionByProjectReport({ rows, onExport }: { rows: ReturnType<typeof getExecutionByProject>; onExport?: ReportExportHandler }) {
   const displayRows = rows.map((row) => ({ id: row.id, searchText: row.project, values: { project: row.project, total: row.totalTestCases, passed: row.Passed, failed: row.Failed, blocked: row.Blocked, noRun: row['No Run'], execution: row.executionPercentage } }));
   return (
     <div className="space-y-5">
@@ -400,12 +418,12 @@ const executionColumns: DisplayColumn[] = [
   { key: 'execution', label: 'Execution %', suffix: '%' },
 ];
 
-function ExecutionTableReport({ title, rows, includeScenario = false, onExport }: { title: string; rows: DisplayRow[]; includeScenario?: boolean; onExport: (name: string, rows: ReportExportRow[]) => void }) {
+function ExecutionTableReport({ title, rows, includeScenario = false, onExport }: { title: string; rows: DisplayRow[]; includeScenario?: boolean; onExport?: ReportExportHandler }) {
   const columns = includeScenario ? [executionColumns[0], { key: 'scenario', label: 'Scenario' }, ...executionColumns.slice(1)] : executionColumns;
   return <ReportDataTable title={title} description="Latest execution outcomes for each matching context." rows={rows} columns={columns} onExport={onExport} />;
 }
 
-function DefectSummaryReport({ summary, rows, onExport }: { summary: ReturnType<typeof getDefectSummary>; rows: CategoryCountRow[]; onExport: () => void }) {
+function DefectSummaryReport({ summary, rows, onExport }: { summary: ReturnType<typeof getDefectSummary>; rows: CategoryCountRow[]; onExport?: () => void }) {
   return (
     <section aria-label="Defect Summary report" className="space-y-5">
       <ReportHeader title="Defect Summary" description="Current defect workflow status and risk levels." onExport={onExport} />
@@ -424,13 +442,13 @@ function DefectSummaryReport({ summary, rows, onExport }: { summary: ReturnType<
   );
 }
 
-function DefectsByProjectReport({ rows, onExport }: { rows: ReturnType<typeof getDefectsByProject>; onExport: (name: string, rows: ReportExportRow[]) => void }) {
+function DefectsByProjectReport({ rows, onExport }: { rows: ReturnType<typeof getDefectsByProject>; onExport?: ReportExportHandler }) {
   return <ReportDataTable title="Defects by Project" description="Defect volume, workflow, and severity for each matching Project." rows={rows.map((row) => ({ id: row.id, searchText: row.project, values: { project: row.project, total: row.total, open: row.Open, inProgress: row['In Progress'], ready: row['Ready for Retest'], closed: row.Closed, reopened: row.Reopened, critical: row.Critical, high: row.High } }))} columns={[
     { key: 'project', label: 'Project' }, { key: 'total', label: 'Total' }, { key: 'open', label: 'Open' }, { key: 'inProgress', label: 'In Progress' }, { key: 'ready', label: 'Ready for Retest' }, { key: 'closed', label: 'Closed' }, { key: 'reopened', label: 'Reopened' }, { key: 'critical', label: 'Critical' }, { key: 'high', label: 'High' },
   ]} onExport={onExport} />;
 }
 
-function CategoryReport({ title, categoryLabel, rows, onExport }: { title: string; categoryLabel: string; rows: CategoryCountRow[]; onExport: (name: string, rows: ReportExportRow[]) => void }) {
+function CategoryReport({ title, categoryLabel, rows, onExport }: { title: string; categoryLabel: string; rows: CategoryCountRow[]; onExport?: ReportExportHandler }) {
   return (
     <div className="space-y-5">
       <DistributionChart id={`${title.toLocaleLowerCase().replaceAll(' ', '-')}-chart`} title={title} emptyMessage="No matching Defects." items={rows.map((row, index) => ({ label: row.category, count: row.count, percentage: row.percentage, tone: (['danger', 'warning', 'neutral', 'muted', 'success'][index] ?? 'neutral') as 'danger' | 'warning' | 'neutral' | 'muted' | 'success' }))} />
@@ -439,8 +457,8 @@ function CategoryReport({ title, categoryLabel, rows, onExport }: { title: strin
   );
 }
 
-function TraceabilityReport({ rows, filters, onFilterChange, onExport }: { rows: ReturnType<typeof getTraceabilityRows>; filters: TraceabilityFilters; onFilterChange: (filters: TraceabilityFilters) => void; onExport: (name: string, rows: ReportExportRow[]) => void }) {
-  const displayRows = rows.map((row) => ({ id: row.id, searchText: Object.values(row).join(' '), values: { project: row.project, scenario: row.scenario, testCase: row.testCase, latestStatus: row.latestStatus, execution: row.latestExecution, executionDate: row.latestExecutionDate ? new Date(row.latestExecutionDate).toLocaleString() : 'Not executed', defectId: row.defectId || 'No Defect', defectStatus: row.defectStatus || 'Not applicable', severity: row.severity || 'Not applicable', externalSystem: row.externalSystem || 'Not linked', externalKey: row.externalIssueKey || 'Not linked' } }));
+function TraceabilityReport({ rows, filters, onFilterChange, onExport }: { rows: ReturnType<typeof getTraceabilityRows>; filters: TraceabilityFilters; onFilterChange: (filters: TraceabilityFilters) => void; onExport?: ReportExportHandler }) {
+  const displayRows = rows.map((row) => ({ id: row.id, searchText: Object.values(row).join(' '), values: { project: row.project, scenario: row.scenario, testCase: row.testCase, latestStatus: row.latestStatus, execution: row.latestExecution, executedBy: row.executedBy, executionDate: row.latestExecutionDate ? new Date(row.latestExecutionDate).toLocaleString() : 'Not executed', defectId: row.defectId || 'No Defect', defectStatus: row.defectStatus || 'Not applicable', severity: row.severity || 'Not applicable', defectAssignee: row.defectAssignee || 'Unassigned', defectReporter: row.defectReporter || 'Not provided', externalSystem: row.externalSystem || 'Not linked', externalKey: row.externalIssueKey || 'Not linked' } }));
   return (
     <div className="space-y-4">
       <TableToolbar>
@@ -449,19 +467,19 @@ function TraceabilityReport({ rows, filters, onFilterChange, onExport }: { rows:
         <button type="button" className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700" onClick={() => onFilterChange({ ...EMPTY_TRACEABILITY_FILTERS })}>Clear Traceability Filters</button>
       </TableToolbar>
       <ReportDataTable title="Traceability Report" description="Testing context, latest execution, linked Defects, and external work items." rows={displayRows} columns={[
-        { key: 'project', label: 'Project' }, { key: 'scenario', label: 'Scenario' }, { key: 'testCase', label: 'Test Case' }, { key: 'latestStatus', label: 'Latest Status' }, { key: 'execution', label: 'Latest Execution' }, { key: 'executionDate', label: 'Latest Execution Date' }, { key: 'defectId', label: 'Defect ID' }, { key: 'defectStatus', label: 'Defect Status' }, { key: 'severity', label: 'Severity' }, { key: 'externalSystem', label: 'External System' }, { key: 'externalKey', label: 'External Issue Key' },
+        { key: 'project', label: 'Project' }, { key: 'scenario', label: 'Scenario' }, { key: 'testCase', label: 'Test Case' }, { key: 'latestStatus', label: 'Latest Status' }, { key: 'execution', label: 'Latest Execution' }, { key: 'executedBy', label: 'Executed By' }, { key: 'executionDate', label: 'Latest Execution Date' }, { key: 'defectId', label: 'Defect ID' }, { key: 'defectStatus', label: 'Defect Status' }, { key: 'severity', label: 'Severity' }, { key: 'defectAssignee', label: 'Defect Assignee' }, { key: 'defectReporter', label: 'Defect Reporter' }, { key: 'externalSystem', label: 'External System' }, { key: 'externalKey', label: 'External Issue Key' },
       ]} onExport={onExport} />
     </div>
   );
 }
 
-function AttentionReport({ rows, onExport }: { rows: ReturnType<typeof getAttentionRows>; onExport: (name: string, rows: ReportExportRow[]) => void }) {
+function AttentionReport({ rows, onExport }: { rows: ReturnType<typeof getAttentionRows>; onExport?: ReportExportHandler }) {
   return <ReportDataTable title="Attention Needed Report" description="Failed, Blocked, No Run, and open high-risk Defects that need review." rows={rows.map((row) => ({ id: row.id, searchText: Object.values(row).join(' '), values: { category: row.category, project: row.project, scenario: row.scenario, testCase: row.testCase, defectId: row.defectId || 'Not applicable', status: row.status, severity: row.severity || 'Not applicable' } }))} columns={[
     { key: 'category', label: 'Attention Type' }, { key: 'project', label: 'Project' }, { key: 'scenario', label: 'Scenario' }, { key: 'testCase', label: 'Test Case' }, { key: 'defectId', label: 'Defect ID' }, { key: 'status', label: 'Status' }, { key: 'severity', label: 'Severity' },
   ]} onExport={onExport} />;
 }
 
-function ReportDataTable({ title, description, rows, columns, onExport }: { title: string; description: string; rows: DisplayRow[]; columns: DisplayColumn[]; onExport: (name: string, rows: ReportExportRow[]) => void }) {
+function ReportDataTable({ title, description, rows, columns, onExport }: { title: string; description: string; rows: DisplayRow[]; columns: DisplayColumn[]; onExport?: ReportExportHandler }) {
   const [search, setSearch] = useState('');
   const [sortKey, setSortKey] = useState(columns[0]?.key ?? '');
   const [sortDirection, setSortDirection] = useState<SortDirection>('ascending');
@@ -486,7 +504,7 @@ function ReportDataTable({ title, description, rows, columns, onExport }: { titl
 
   return (
     <section aria-label={title}>
-      <ReportHeader title={title} description={description} onExport={() => onExport(title, exportRows)} />
+      <ReportHeader title={title} description={description} onExport={onExport ? () => onExport(title, exportRows) : undefined} />
       <div className="mt-4">
         <TableToolbar>
           <TableSearchField id={`report-search-${title.toLocaleLowerCase().replaceAll(' ', '-')}`} label={`Search ${title}`} placeholder="Search matching report rows" value={search} onChange={(value) => { setSearch(value); setPage(1); }} />
